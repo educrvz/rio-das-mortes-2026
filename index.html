@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1a1a2e">
+<title>Rio das Mortes 2026</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png?v=2">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="map"></div>
+
+<div id="loading-overlay">
+  <div class="loading-content">
+    <img src="icon-192.png?v=2" alt="Rio das Mortes 2026" class="loading-logo">
+    <h1>Rio das Mortes 2026</h1>
+    <p id="download-size">O pacote offline ainda está sendo preparado.</p>
+    <p style="font-size:13px; color:#666; margin-top:4px;">Mantenha a tela aberta até completar</p>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    <p id="progress-text">Conectando...</p>
+    <button id="resume-btn" class="resume-btn" onclick="resumeDownload()" style="display:none">
+      Parou? Baixe tudo
+    </button>
+  </div>
+</div>
+
+<div id="top-bar">
+  <div class="metric-block">
+    <span class="metric-label">FALTAM</span>
+    <strong id="remaining-display">-- km</strong>
+  </div>
+  <div class="metric-block metric-block-right">
+    <span class="metric-label">VELOCIDADE</span>
+    <strong id="speed-display">-- km/h</strong>
+  </div>
+</div>
+
+<div id="gps-btn" class="map-btn" onclick="toggleGPS()">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
+  </svg>
+</div>
+
+<div id="center-btn" class="map-btn" onclick="toggleCenter()" style="display:none">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/>
+  </svg>
+</div>
+
+<div id="layer-column">
+  <button id="km-toggle-btn" class="map-btn layer-btn" type="button" onclick="toggleKmDetail()" aria-label="Mostrar todos os quilômetros">
+    <span style="font-size:12px; font-weight:800; line-height:1">KM</span>
+  </button>
+  <button id="notes-btn" class="map-btn layer-btn" type="button" onclick="toggleNoteCreation()" aria-label="Ativar criação de anotações">
+    <span style="font-size:20px; line-height:1">📝</span>
+    <small id="notes-count">0</small>
+  </button>
+  <div id="poi-toggle-btn" class="map-btn layer-btn" onclick="togglePOIDrawer()">
+    <span style="line-height:1">📍</span>
+  </div>
+  <div id="poi-drawer">
+    <div id="toggle-beach" class="map-btn layer-btn" onclick="togglePOILayer('beach')">
+      <span style="font-size:20px; line-height:1">🏖️</span>
+    </div>
+    <div id="toggle-exit" class="map-btn layer-btn" onclick="togglePOILayer('exit')">
+      <span style="font-size:20px; line-height:1">🚗</span>
+    </div>
+    <div id="toggle-bridge" class="map-btn layer-btn" onclick="togglePOILayer('bridge')">
+      <span style="font-size:20px; line-height:1">🌉</span>
+    </div>
+    <div id="toggle-island" class="map-btn layer-btn" onclick="togglePOILayer('island')">
+      <span style="font-size:20px; line-height:1">🏝️</span>
+    </div>
+    <div id="toggle-town" class="map-btn layer-btn" onclick="togglePOILayer('town')">
+      <span style="font-size:20px; line-height:1">🏘️</span>
+    </div>
+    <div id="toggle-house" class="map-btn layer-btn" onclick="togglePOILayer('house')">
+      <span style="font-size:20px; line-height:1">🏠</span>
+    </div>
+    <div id="toggle-lagoon" class="map-btn layer-btn" onclick="togglePOILayer('lagoon')">
+      <span style="font-size:20px; line-height:1">💧</span>
+    </div>
+    <div id="toggle-health" class="map-btn layer-btn" onclick="togglePOILayer('health')">
+      <span style="font-size:20px; line-height:1">🏥</span>
+    </div>
+    <div id="toggle-airstrip" class="map-btn layer-btn" onclick="togglePOILayer('airstrip')">
+      <span style="font-size:20px; line-height:1">🛩️</span>
+    </div>
+    <div id="hospital-btn" class="map-btn layer-btn" onclick="showHospitals()">
+      <span style="font-size:20px; line-height:1">🐍</span>
+    </div>
+  </div>
+</div>
+
+<div id="info-panel" style="display:none">
+  <div id="info-content"></div>
+  <button id="info-close-btn" onclick="closeInfo()">Fechar</button>
+</div>
+
+<div id="coords-display" style="display:none"></div>
+<div id="map-attribution">River geometry © OpenStreetMap contributors</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="route-data.js"></script>
+<script src="tile-manifest.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
