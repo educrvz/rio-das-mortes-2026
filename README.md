@@ -8,7 +8,7 @@ Mapa GPS offline (PWA) para a expedição de canoa entre Vila Berrante e Novo Sa
 - Fonte: `data/Mortes-2026.kml`, recebido na pasta `00_WhatsApp_transfer` do Google Drive.
 - Rota oficial do KML: LineString detalhada com 84 vértices.
 - 93 pontos quilométricos (`000` a `091` e `FIM`) preservados nas coordenadas do KML.
-- 20 POIs importados das pastas `Cidades` e `POI` do arquivo-fonte.
+- 19 POIs únicos importados das pastas `Cidades` e `POI` do arquivo-fonte.
 - Rota, POIs e interface ainda precisam de validação visual antes da geração do pacote offline.
 
 ## Gerar dados
