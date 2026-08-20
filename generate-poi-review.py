@@ -183,7 +183,8 @@ def main():
 </Document>
 </kml>
 """
-    OUTPUT.write_text(kml, encoding="utf-8")
+    clean_kml = "\n".join(line.rstrip() for line in kml.splitlines()) + "\n"
+    OUTPUT.write_text(clean_kml, encoding="utf-8")
     print(f"Wrote {OUTPUT.name}: {len(near)} near-route, {len(logistics)} logistics")
 
 
