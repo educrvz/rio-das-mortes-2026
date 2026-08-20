@@ -12,6 +12,17 @@ ROUTE_DATA = ROOT / "route-data.js"
 OUTPUT = ROOT / "Rio das Mortes 2026 - Revisao POIs.kml"
 NEAR_ROUTE_KM = 2.0
 
+TYPE_PRESENTATION = {
+    "house": ("🏠", "Casa isolada"),
+    "town": ("🏘️", "Grupo de casas / povoado"),
+    "exit": ("🚗", "Acesso de carro"),
+    "bridge": ("🌉", "Ponte"),
+    "beach": ("🏖️", "Praia"),
+    "island": ("🏝️", "Ilha"),
+    "lagoon": ("💧", "Lagoa"),
+    "airstrip": ("🛩️", "Pista de pouso"),
+}
+
 
 def haversine(a, b):
     lon1, lat1 = a
@@ -64,34 +75,21 @@ def route_position(point, route):
 
 
 def suggested_category(poi):
-    name = poi["name"].casefold()
-    if poi["type"] == "exit":
-        return "Acesso / entrada"
-    if poi["type"] == "bridge":
-        return "Ponte"
-    if poi["type"] == "town":
-        return "Cidade / apoio"
-    if "pousada" in name:
-        return "Pousada / apoio"
-    if "rancho" in name:
-        return "Rancho / referência"
-    if "faz" in name:
-        return "Fazenda / referência"
-    if "barreira" in name:
-        return "Referência a confirmar"
-    return "Outro"
+    return TYPE_PRESENTATION.get(poi["type"], ("📍", "Outro"))
 
 
 def placemark(row, prefix, style):
-    label = f"{prefix} | KM {row['route_km']:.1f} | {row['name']}"
+    emoji, category = row["category"]
+    label = f"{prefix} | KM {row['route_km']:.1f} | {emoji} {category}?"
     description = (
-        f"Sugestão: {row['category']}\n"
+        f"Classificação preliminar: {emoji} {category}\n"
+        f"Nome no arquivo-fonte: {row['name']}\n"
         f"Distância da rota: {row['offset_km']:.2f} km\n"
         "\nREVISAR:\n"
-        "1. Manter ou remover do app?\n"
-        "2. Nome está correto?\n"
-        "3. Categoria/ícone está correto?\n"
-        "4. Há telefone, contato, alerta ou observação útil?"
+        "1. É casa isolada 🏠 ou grupo de casas/povoado 🏘️?\n"
+        "2. É visível e útil para quem está navegando no rio?\n"
+        "3. Manter ou remover do app?\n"
+        "4. Há acesso, perigo, apoio ou outra observação útil?"
     )
     return f"""
     <Placemark>
@@ -162,7 +160,7 @@ def main():
 <kml xmlns="http://www.opengis.net/kml/2.2">
 <Document>
   <name>Rio das Mortes 2026 - Revisão de POIs</name>
-  <description>Arquivo derivado para revisão. O KML original permanece intacto.</description>
+  <description>Revisão focada no que é visível e útil a partir do rio. O KML original permanece intacto.</description>
   <Style id="route"><LineStyle><color>ff4444ff</color><width>4</width></LineStyle></Style>
   <Style id="review"><IconStyle><color>ff00ffff</color><scale>1.1</scale></IconStyle><LabelStyle><scale>0.9</scale></LabelStyle></Style>
   <Style id="logistics"><IconStyle><color>ffff0000</color><scale>0.9</scale></IconStyle><LabelStyle><scale>0.75</scale></LabelStyle></Style>
@@ -173,7 +171,7 @@ def main():
     {km_points}
   </Folder>
   <Folder>
-    <name>2 - REVISAR PRIMEIRO - POIs até 2 km da rota ({len(near)})</name>
+    <name>2 - REVISAR NO RIO - casas e referências até 2 km ({len(near)})</name>
     {near_points}
   </Folder>
   <Folder>

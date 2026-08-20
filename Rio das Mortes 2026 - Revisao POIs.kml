@@ -2,7 +2,7 @@
 <kml xmlns="http://www.opengis.net/kml/2.2">
 <Document>
   <name>Rio das Mortes 2026 - Revisão de POIs</name>
-  <description>Arquivo derivado para revisão. O KML original permanece intacto.</description>
+  <description>Revisão focada no que é visível e útil a partir do rio. O KML original permanece intacto.</description>
   <Style id="route"><LineStyle><color>ff4444ff</color><width>4</width></LineStyle></Style>
   <Style id="review"><IconStyle><color>ff00ffff</color><scale>1.1</scale></IconStyle><LabelStyle><scale>0.9</scale></LabelStyle></Style>
   <Style id="logistics"><IconStyle><color>ffff0000</color><scale>0.9</scale></IconStyle><LabelStyle><scale>0.75</scale></LabelStyle></Style>
@@ -68,257 +68,262 @@
     </Placemark>
   </Folder>
   <Folder>
-    <name>2 - REVISAR PRIMEIRO - POIs até 2 km da rota (10)</name>
+    <name>2 - REVISAR NO RIO - casas e referências até 2 km (9)</name>
 
     <Placemark>
-      <name>R01 | KM 0.2 | Vila Berrante</name>
+      <name>R01 | KM 0.2 | 🚗 Acesso de carro?</name>
       <styleUrl>#review</styleUrl>
-      <description>Sugestão: Acesso / entrada
+      <description>Classificação preliminar: 🚗 Acesso de carro
+Nome no arquivo-fonte: Vila Berrante
 Distância da rota: 0.16 km
 
 REVISAR:
-1. Manter ou remover do app?
-2. Nome está correto?
-3. Categoria/ícone está correto?
-4. Há telefone, contato, alerta ou observação útil?</description>
+1. É casa isolada 🏠 ou grupo de casas/povoado 🏘️?
+2. É visível e útil para quem está navegando no rio?
+3. Manter ou remover do app?
+4. Há acesso, perigo, apoio ou outra observação útil?</description>
       <Point><coordinates>-51.0260868411,-12.8152885483,0</coordinates></Point>
     </Placemark>
     <Placemark>
-      <name>R02 | KM 0.4 | Rancho Cardume</name>
+      <name>R02 | KM 0.4 | 🏠 Casa isolada?</name>
       <styleUrl>#review</styleUrl>
-      <description>Sugestão: Rancho / referência
+      <description>Classificação preliminar: 🏠 Casa isolada
+Nome no arquivo-fonte: Rancho Cardume
 Distância da rota: 0.25 km
 
 REVISAR:
-1. Manter ou remover do app?
-2. Nome está correto?
-3. Categoria/ícone está correto?
-4. Há telefone, contato, alerta ou observação útil?</description>
+1. É casa isolada 🏠 ou grupo de casas/povoado 🏘️?
+2. É visível e útil para quem está navegando no rio?
+3. Manter ou remover do app?
+4. Há acesso, perigo, apoio ou outra observação útil?</description>
       <Point><coordinates>-51.0264876938,-12.8129261055,0</coordinates></Point>
     </Placemark>
     <Placemark>
-      <name>R03 | KM 8.8 | Rancho Parreira</name>
+      <name>R03 | KM 8.8 | 🏠 Casa isolada?</name>
       <styleUrl>#review</styleUrl>
-      <description>Sugestão: Rancho / referência
+      <description>Classificação preliminar: 🏠 Casa isolada
+Nome no arquivo-fonte: Rancho Parreira
 Distância da rota: 0.15 km
 
 REVISAR:
-1. Manter ou remover do app?
-2. Nome está correto?
-3. Categoria/ícone está correto?
-4. Há telefone, contato, alerta ou observação útil?</description>
+1. É casa isolada 🏠 ou grupo de casas/povoado 🏘️?
+2. É visível e útil para quem está navegando no rio?
+3. Manter ou remover do app?
+4. Há acesso, perigo, apoio ou outra observação útil?</description>
       <Point><coordinates>-51.0060466402,-12.7694826240,0</coordinates></Point>
     </Placemark>
     <Placemark>
-      <name>R04 | KM 16.7 | Faz Pandolfi</name>
+      <name>R04 | KM 16.7 | 🏠 Casa isolada?</name>
       <styleUrl>#review</styleUrl>
-      <description>Sugestão: Fazenda / referência
+      <description>Classificação preliminar: 🏠 Casa isolada
+Nome no arquivo-fonte: Faz Pandolfi
 Distância da rota: 0.28 km
 
 REVISAR:
-1. Manter ou remover do app?
-2. Nome está correto?
-3. Categoria/ícone está correto?
-4. Há telefone, contato, alerta ou observação útil?</description>
+1. É casa isolada 🏠 ou grupo de casas/povoado 🏘️?
+2. É visível e útil para quem está navegando no rio?
+3. Manter ou remover do app?
+4. Há acesso, perigo, apoio ou outra observação útil?</description>
       <Point><coordinates>-50.9963458673,-12.7386285477,0</coordinates></Point>
     </Placemark>
     <Placemark>
-      <name>R05 | KM 20.0 | Rancho do Gerson</name>
+      <name>R05 | KM 20.0 | 🏠 Casa isolada?</name>
       <styleUrl>#review</styleUrl>
-      <description>Sugestão: Rancho / referência
+      <description>Classificação preliminar: 🏠 Casa isolada
+Nome no arquivo-fonte: Rancho do Gerson
 Distância da rota: 0.29 km
 
 REVISAR:
-1. Manter ou remover do app?
-2. Nome está correto?
-3. Categoria/ícone está correto?
-4. Há telefone, contato, alerta ou observação útil?</description>
+1. É casa isolada 🏠 ou grupo de casas/povoado 🏘️?
+2. É visível e útil para quem está navegando no rio?
+3. Manter ou remover do app?
+4. Há acesso, perigo, apoio ou outra observação útil?</description>
       <Point><coordinates>-50.9809992689,-12.7165368569,0</coordinates></Point>
     </Placemark>
     <Placemark>
-      <name>R06 | KM 35.8 | Faz</name>
+      <name>R06 | KM 35.8 | 🏠 Casa isolada?</name>
       <styleUrl>#review</styleUrl>
-      <description>Sugestão: Fazenda / referência
+      <description>Classificação preliminar: 🏠 Casa isolada
+Nome no arquivo-fonte: Faz
 Distância da rota: 0.42 km
 
 REVISAR:
-1. Manter ou remover do app?
-2. Nome está correto?
-3. Categoria/ícone está correto?
-4. Há telefone, contato, alerta ou observação útil?</description>
+1. É casa isolada 🏠 ou grupo de casas/povoado 🏘️?
+2. É visível e útil para quem está navegando no rio?
+3. Manter ou remover do app?
+4. Há acesso, perigo, apoio ou outra observação útil?</description>
       <Point><coordinates>-50.9193570745,-12.6259265089,0</coordinates></Point>
     </Placemark>
     <Placemark>
-      <name>R07 | KM 57.0 | Faz do seu Domingos</name>
+      <name>R07 | KM 57.0 | 🏠 Casa isolada?</name>
       <styleUrl>#review</styleUrl>
-      <description>Sugestão: Fazenda / referência
+      <description>Classificação preliminar: 🏠 Casa isolada
+Nome no arquivo-fonte: Faz do seu Domingos
 Distância da rota: 0.24 km
 
 REVISAR:
-1. Manter ou remover do app?
-2. Nome está correto?
-3. Categoria/ícone está correto?
-4. Há telefone, contato, alerta ou observação útil?</description>
+1. É casa isolada 🏠 ou grupo de casas/povoado 🏘️?
+2. É visível e útil para quem está navegando no rio?
+3. Manter ou remover do app?
+4. Há acesso, perigo, apoio ou outra observação útil?</description>
       <Point><coordinates>-50.9893612958,-12.5110444033,0</coordinates></Point>
     </Placemark>
     <Placemark>
-      <name>R08 | KM 62.9 | Barreira Amarela</name>
+      <name>R08 | KM 62.9 | 🏠 Casa isolada?</name>
       <styleUrl>#review</styleUrl>
-      <description>Sugestão: Referência a confirmar
+      <description>Classificação preliminar: 🏠 Casa isolada
+Nome no arquivo-fonte: Barreira Amarela
 Distância da rota: 0.20 km
 
 REVISAR:
-1. Manter ou remover do app?
-2. Nome está correto?
-3. Categoria/ícone está correto?
-4. Há telefone, contato, alerta ou observação útil?</description>
+1. É casa isolada 🏠 ou grupo de casas/povoado 🏘️?
+2. É visível e útil para quem está navegando no rio?
+3. Manter ou remover do app?
+4. Há acesso, perigo, apoio ou outra observação útil?</description>
       <Point><coordinates>-50.9932000159,-12.4738569542,0</coordinates></Point>
     </Placemark>
     <Placemark>
-      <name>R09 | KM 91.6 | Pousada Maytha</name>
+      <name>R09 | KM 91.6 | 🏠 Casa isolada?</name>
       <styleUrl>#review</styleUrl>
-      <description>Sugestão: Pousada / apoio
+      <description>Classificação preliminar: 🏠 Casa isolada
+Nome no arquivo-fonte: Pousada Maytha
 Distância da rota: 0.03 km
 
 REVISAR:
-1. Manter ou remover do app?
-2. Nome está correto?
-3. Categoria/ícone está correto?
-4. Há telefone, contato, alerta ou observação útil?</description>
+1. É casa isolada 🏠 ou grupo de casas/povoado 🏘️?
+2. É visível e útil para quem está navegando no rio?
+3. Manter ou remover do app?
+4. Há acesso, perigo, apoio ou outra observação útil?</description>
       <Point><coordinates>-50.9692651189,-12.3000450468,0</coordinates></Point>
-    </Placemark>
-    <Placemark>
-      <name>R10 | KM 91.7 | Novo Sto Antônio</name>
-      <styleUrl>#review</styleUrl>
-      <description>Sugestão: Cidade / apoio
-Distância da rota: 1.66 km
-
-REVISAR:
-1. Manter ou remover do app?
-2. Nome está correto?
-3. Categoria/ícone está correto?
-4. Há telefone, contato, alerta ou observação útil?</description>
-      <Point><coordinates>-50.9747791724,-12.2854724953,0</coordinates></Point>
     </Placemark>
   </Folder>
   <Folder>
     <name>3 - Referências logísticas fora da rota (9)</name>
 
     <Placemark>
-      <name>L01 | KM 0.0 | Faz Shibata</name>
+      <name>L01 | KM 0.0 | 🏠 Casa isolada?</name>
       <styleUrl>#logistics</styleUrl>
-      <description>Sugestão: Fazenda / referência
+      <description>Classificação preliminar: 🏠 Casa isolada
+Nome no arquivo-fonte: Faz Shibata
 Distância da rota: 55.52 km
 
 REVISAR:
-1. Manter ou remover do app?
-2. Nome está correto?
-3. Categoria/ícone está correto?
-4. Há telefone, contato, alerta ou observação útil?</description>
+1. É casa isolada 🏠 ou grupo de casas/povoado 🏘️?
+2. É visível e útil para quem está navegando no rio?
+3. Manter ou remover do app?
+4. Há acesso, perigo, apoio ou outra observação útil?</description>
       <Point><coordinates>-51.2198270486,-13.2811250287,0</coordinates></Point>
     </Placemark>
     <Placemark>
-      <name>L02 | KM 6.1 | Luiz Alves</name>
+      <name>L02 | KM 6.1 | 🏘️ Grupo de casas / povoado?</name>
       <styleUrl>#logistics</styleUrl>
-      <description>Sugestão: Cidade / apoio
+      <description>Classificação preliminar: 🏘️ Grupo de casas / povoado
+Nome no arquivo-fonte: Luiz Alves
 Distância da rota: 64.93 km
 
 REVISAR:
-1. Manter ou remover do app?
-2. Nome está correto?
-3. Categoria/ícone está correto?
-4. Há telefone, contato, alerta ou observação útil?</description>
+1. É casa isolada 🏠 ou grupo de casas/povoado 🏘️?
+2. É visível e útil para quem está navegando no rio?
+3. Manter ou remover do app?
+4. Há acesso, perigo, apoio ou outra observação útil?</description>
       <Point><coordinates>-50.5822962005,-13.2140299903,0</coordinates></Point>
     </Placemark>
     <Placemark>
-      <name>L03 | KM 91.7 | Kuriala</name>
+      <name>L03 | KM 91.7 | 🏘️ Grupo de casas / povoado?</name>
       <styleUrl>#logistics</styleUrl>
-      <description>Sugestão: Cidade / apoio
+      <description>Classificação preliminar: 🏘️ Grupo de casas / povoado
+Nome no arquivo-fonte: Kuriala
 Distância da rota: 70.59 km
 
 REVISAR:
-1. Manter ou remover do app?
-2. Nome está correto?
-3. Categoria/ícone está correto?
-4. Há telefone, contato, alerta ou observação útil?</description>
+1. É casa isolada 🏠 ou grupo de casas/povoado 🏘️?
+2. É visível e útil para quem está navegando no rio?
+3. Manter ou remover do app?
+4. Há acesso, perigo, apoio ou outra observação útil?</description>
       <Point><coordinates>-50.7085442563,-11.7146442470,0</coordinates></Point>
     </Placemark>
     <Placemark>
-      <name>L04 | KM 91.7 | São Felix</name>
+      <name>L04 | KM 91.7 | 🏘️ Grupo de casas / povoado?</name>
       <styleUrl>#logistics</styleUrl>
-      <description>Sugestão: Cidade / apoio
+      <description>Classificação preliminar: 🏘️ Grupo de casas / povoado
+Nome no arquivo-fonte: São Felix
 Distância da rota: 82.16 km
 
 REVISAR:
-1. Manter ou remover do app?
-2. Nome está correto?
-3. Categoria/ícone está correto?
-4. Há telefone, contato, alerta ou observação útil?</description>
+1. É casa isolada 🏠 ou grupo de casas/povoado 🏘️?
+2. É visível e útil para quem está navegando no rio?
+3. Manter ou remover do app?
+4. Há acesso, perigo, apoio ou outra observação útil?</description>
       <Point><coordinates>-50.6673886708,-11.6181089072,0</coordinates></Point>
     </Placemark>
     <Placemark>
-      <name>L05 | KM 0.0 | Faz São Domingos</name>
+      <name>L05 | KM 0.0 | 🏠 Casa isolada?</name>
       <styleUrl>#logistics</styleUrl>
-      <description>Sugestão: Fazenda / referência
+      <description>Classificação preliminar: 🏠 Casa isolada
+Nome no arquivo-fonte: Faz São Domingos
 Distância da rota: 91.15 km
 
 REVISAR:
-1. Manter ou remover do app?
-2. Nome está correto?
-3. Categoria/ícone está correto?
-4. Há telefone, contato, alerta ou observação útil?</description>
+1. É casa isolada 🏠 ou grupo de casas/povoado 🏘️?
+2. É visível e útil para quem está navegando no rio?
+3. Manter ou remover do app?
+4. Há acesso, perigo, apoio ou outra observação útil?</description>
       <Point><coordinates>-51.4132500000,-13.5476944444,0</coordinates></Point>
     </Placemark>
     <Placemark>
-      <name>L06 | KM 0.0 | Ponte Cristalino</name>
+      <name>L06 | KM 0.0 | 🌉 Ponte?</name>
       <styleUrl>#logistics</styleUrl>
-      <description>Sugestão: Ponte
+      <description>Classificação preliminar: 🌉 Ponte
+Nome no arquivo-fonte: Ponte Cristalino
 Distância da rota: 157.35 km
 
 REVISAR:
-1. Manter ou remover do app?
-2. Nome está correto?
-3. Categoria/ícone está correto?
-4. Há telefone, contato, alerta ou observação útil?</description>
+1. É casa isolada 🏠 ou grupo de casas/povoado 🏘️?
+2. É visível e útil para quem está navegando no rio?
+3. Manter ou remover do app?
+4. Há acesso, perigo, apoio ou outra observação útil?</description>
       <Point><coordinates>-51.3060485139,-14.2129734697,0</coordinates></Point>
     </Placemark>
     <Placemark>
-      <name>L07 | KM 0.0 | Pousada Morada do Sol</name>
+      <name>L07 | KM 0.0 | 🏠 Casa isolada?</name>
       <styleUrl>#logistics</styleUrl>
-      <description>Sugestão: Pousada / apoio
+      <description>Classificação preliminar: 🏠 Casa isolada
+Nome no arquivo-fonte: Pousada Morada do Sol
 Distância da rota: 158.48 km
 
 REVISAR:
-1. Manter ou remover do app?
-2. Nome está correto?
-3. Categoria/ícone está correto?
-4. Há telefone, contato, alerta ou observação útil?</description>
+1. É casa isolada 🏠 ou grupo de casas/povoado 🏘️?
+2. É visível e útil para quem está navegando no rio?
+3. Manter ou remover do app?
+4. Há acesso, perigo, apoio ou outra observação útil?</description>
       <Point><coordinates>-51.6992556230,-14.0878754103,0</coordinates></Point>
     </Placemark>
     <Placemark>
-      <name>L08 | KM 0.0 | Cocalinho</name>
+      <name>L08 | KM 0.0 | 🏘️ Grupo de casas / povoado?</name>
       <styleUrl>#logistics</styleUrl>
-      <description>Sugestão: Cidade / apoio
+      <description>Classificação preliminar: 🏘️ Grupo de casas / povoado
+Nome no arquivo-fonte: Cocalinho
 Distância da rota: 174.65 km
 
 REVISAR:
-1. Manter ou remover do app?
-2. Nome está correto?
-3. Categoria/ícone está correto?
-4. Há telefone, contato, alerta ou observação útil?</description>
+1. É casa isolada 🏠 ou grupo de casas/povoado 🏘️?
+2. É visível e útil para quem está navegando no rio?
+3. Manter ou remover do app?
+4. Há acesso, perigo, apoio ou outra observação útil?</description>
       <Point><coordinates>-50.9950810175,-14.3961924652,0</coordinates></Point>
     </Placemark>
     <Placemark>
-      <name>L09 | KM 0.0 | Barra do Garças</name>
+      <name>L09 | KM 0.0 | 🏘️ Grupo de casas / povoado?</name>
       <styleUrl>#logistics</styleUrl>
-      <description>Sugestão: Cidade / apoio
+      <description>Classificação preliminar: 🏘️ Grupo de casas / povoado
+Nome no arquivo-fonte: Barra do Garças
 Distância da rota: 365.07 km
 
 REVISAR:
-1. Manter ou remover do app?
-2. Nome está correto?
-3. Categoria/ícone está correto?
-4. Há telefone, contato, alerta ou observação útil?</description>
+1. É casa isolada 🏠 ou grupo de casas/povoado 🏘️?
+2. É visível e útil para quem está navegando no rio?
+3. Manter ou remover do app?
+4. Há acesso, perigo, apoio ou outra observação útil?</description>
       <Point><coordinates>-52.2529148305,-15.8902103486,0</coordinates></Point>
     </Placemark>
   </Folder>

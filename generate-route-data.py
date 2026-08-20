@@ -14,6 +14,7 @@ DEFAULT_KML = ROOT / "data" / "Mortes-2026.kml"
 OUTPUT = ROOT / "route-data.js"
 NS = {"k": "http://www.opengis.net/kml/2.2"}
 ROUTE_NAME = "Rio das Mortes (Vila Berrante- NSA)"
+IGNORED_POIS = {"Novo Sto Antônio"}
 
 
 def haversine(a, b):
@@ -71,6 +72,8 @@ def load_source(kml_path):
             continue
         for placemark in folder.findall("k:Placemark", NS):
             name = placemark_name(placemark)
+            if name in IGNORED_POIS:
+                continue
             point = direct_point(placemark)
             if not point:
                 continue
