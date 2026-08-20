@@ -164,9 +164,9 @@ def main():
   <name>Rio das Mortes 2026 - Revisão de POIs</name>
   <description>Arquivo derivado para revisão. O KML original permanece intacto.</description>
   <Style id="route"><LineStyle><color>ff4444ff</color><width>4</width></LineStyle></Style>
-  <Style id="review"><IconStyle><scale>1.1</scale><Icon><href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href></Icon></IconStyle><LabelStyle><scale>0.9</scale></LabelStyle></Style>
-  <Style id="logistics"><IconStyle><scale>0.9</scale><Icon><href>http://maps.google.com/mapfiles/kml/pushpin/blu-pushpin.png</href></Icon></IconStyle><LabelStyle><scale>0.75</scale></LabelStyle></Style>
-  <Style id="km"><IconStyle><scale>0.55</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon></IconStyle><LabelStyle><scale>0.75</scale></LabelStyle></Style>
+  <Style id="review"><IconStyle><color>ff00ffff</color><scale>1.1</scale></IconStyle><LabelStyle><scale>0.9</scale></LabelStyle></Style>
+  <Style id="logistics"><IconStyle><color>ffff0000</color><scale>0.9</scale></IconStyle><LabelStyle><scale>0.75</scale></LabelStyle></Style>
+  <Style id="km"><IconStyle><color>ffffffff</color><scale>0.55</scale></IconStyle><LabelStyle><scale>0.75</scale></LabelStyle></Style>
   <Folder>
     <name>1 - Rota e quilômetros</name>
     <Placemark><name>Rota Vila Berrante - Novo Santo Antônio</name><styleUrl>#route</styleUrl><LineString><tessellate>1</tessellate><coordinates>{route_coordinates}</coordinates></LineString></Placemark>
