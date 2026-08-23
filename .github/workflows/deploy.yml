@@ -37,10 +37,12 @@ jobs:
           node --check app.js
           node --check sw.js
           node --check google/sw.js
+          node --check offline-recovery-engine.js
           node --check route-data.js
           node tests/install-first-flow.test.mjs
           node tests/offline-worker.test.mjs
           node tests/google-offline-worker.test.mjs
+          node tests/offline-recovery-policy.test.mjs
           git diff --exit-code -- route-data.js
 
   deploy:
