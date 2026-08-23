@@ -10,11 +10,13 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent
-DEFAULT_KML = ROOT / "data" / "Mortes-2026.kml"
+DEFAULT_KML = ROOT / "data" / "Mortes-092026.kml"
+POI_JSON = ROOT / "data" / "mortes-2026-pois.json"
+EMERGENCY_JSON = ROOT / "data" / "mortes-2026-emergency.json"
 OUTPUT = ROOT / "route-data.js"
 NS = {"k": "http://www.opengis.net/kml/2.2"}
 ROUTE_NAME = "Rio das Mortes (Vila Berrante- NSA)"
-IGNORED_POIS = {"Novo Sto Antônio"}
+VALID_POI_TYPES = {"beach", "exit", "island", "town", "house", "lagoon", "airstrip"}
 
 
 def haversine(a, b):
@@ -54,7 +56,7 @@ def load_source(kml_path):
     root = ET.parse(kml_path).getroot()
     route = None
     controls = []
-    pois = []
+    roads = []
 
     for placemark in root.findall(".//k:Placemark", NS):
         name = placemark_name(placemark)
@@ -68,47 +70,74 @@ def load_source(kml_path):
 
     for folder in root.findall(".//k:Folder", NS):
         folder_name = (folder.findtext("k:name", default="", namespaces=NS) or "").strip()
-        if folder_name not in {"Cidades", "POI"}:
+        if folder_name == "Estradas":
+            for placemark in folder.findall("k:Placemark", NS):
+                name = placemark_name(placemark)
+                coordinates = parse_coordinates(
+                    placemark.findtext(
+                        "k:LineString/k:coordinates", default="", namespaces=NS
+                    )
+                )
+                if len(coordinates) < 2:
+                    continue
+                length_km = sum(
+                    haversine(start, end)
+                    for start, end in zip(coordinates, coordinates[1:])
+                )
+                roads.append(
+                    {
+                        "name": name,
+                        "lengthKm": round(length_km, 1),
+                        "route": coordinates,
+                    }
+                )
             continue
-        for placemark in folder.findall("k:Placemark", NS):
-            name = placemark_name(placemark)
-            if name in IGNORED_POIS:
-                continue
-            point = direct_point(placemark)
-            if not point:
-                continue
-            poi_type = classify_poi(folder_name, name)
-            pois.append({"name": name, "lat": point[1], "lon": point[0], "type": poi_type})
-
     if not route or len(route) < 2:
         raise ValueError(f"Detailed route LineString not found: {ROUTE_NAME}")
     if len(controls) < 2:
         raise ValueError("Expected numbered kilometer points plus FIM")
-    return route, controls, deduplicate_pois(pois)
+    if not roads:
+        raise ValueError("Expected the Estradas folder with road LineStrings")
+    return route, controls, roads
 
 
-def classify_poi(folder_name, name):
-    lowered = name.casefold()
-    if folder_name == "Cidades":
-        return "town"
-    if "ponte" in lowered:
-        return "bridge"
-    if name == "Vila Berrante":
-        return "exit"
-    if "novo sto" in lowered or name == "Kuriala":
-        return "town"
-    return "house"
-
-
-def deduplicate_pois(pois):
-    seen = set()
-    result = []
+def load_authoritative_pois():
+    document = json.loads(POI_JSON.read_text(encoding="utf-8"))
+    source = document["source"]
+    pois = document["pois"]
+    seen_ids = set()
+    seen_coordinates = set()
     for poi in pois:
-        key = (poi["name"].casefold(), round(poi["lat"], 7), round(poi["lon"], 7))
-        if key not in seen:
-            seen.add(key)
-            result.append(poi)
-    return result
+        if poi["type"] not in VALID_POI_TYPES:
+            raise ValueError(f"Unsupported POI type: {poi['type']}")
+        if poi["id"] in seen_ids:
+            raise ValueError(f"Duplicate POI id: {poi['id']}")
+        coordinate = (round(poi["lat"], 8), round(poi["lon"], 8))
+        if coordinate in seen_coordinates:
+            raise ValueError(f"Duplicate POI coordinate: {coordinate}")
+        if not (-90 <= poi["lat"] <= 90 and -180 <= poi["lon"] <= 180):
+            raise ValueError(f"Invalid POI coordinate: {poi['id']}")
+        seen_ids.add(poi["id"])
+        seen_coordinates.add(coordinate)
+    return source, pois
+
+
+def load_emergency_hospitals():
+    document = json.loads(EMERGENCY_JSON.read_text(encoding="utf-8"))
+    source = document["source"]
+    hospitals = document["hospitals"]
+    seen_cnes = set()
+    for hospital in hospitals:
+        if hospital.get("type") != "hospital":
+            raise ValueError(f"Unsupported emergency type: {hospital.get('type')}")
+        if hospital["cnes"] in seen_cnes:
+            raise ValueError(f"Duplicate hospital CNES: {hospital['cnes']}")
+        if not (-90 <= hospital["lat"] <= 90 and -180 <= hospital["lon"] <= 180):
+            raise ValueError(f"Invalid hospital coordinate: {hospital['id']}")
+        if not hospital.get("phones") or not hospital.get("antivenoms"):
+            raise ValueError(f"Incomplete hospital record: {hospital['id']}")
+        seen_cnes.add(hospital["cnes"])
+    return source, hospitals
 
 
 class LocalProjection:
@@ -172,8 +201,29 @@ def validate_and_build_markers(route, controls):
 
 def main():
     kml_path = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_KML
-    route, controls, pois = load_source(kml_path)
+    route, controls, roads = load_source(kml_path)
     total_km, markers, control_points, max_offset = validate_and_build_markers(route, controls)
+    poi_source, source_pois = load_authoritative_pois()
+    emergency_source, hospitals = load_emergency_hospitals()
+    cumulative = [0.0]
+    for start, end in zip(route, route[1:]):
+        cumulative.append(cumulative[-1] + haversine(start, end))
+    projection = LocalProjection(sum(point[1] for point in route) / len(route))
+    pois = []
+    for poi in source_pois:
+        offset, station = project_onto_route(
+            [poi["lon"], poi["lat"]], route, projection, cumulative
+        )
+        pois.append(
+            {
+                **poi,
+                "routeKm": round(station, 1),
+                "offsetKm": round(offset, 2),
+                "source": poi_source["title"],
+                "sourceUrl": poi_source["publicSnapshot"],
+            }
+        )
+    pois.sort(key=lambda poi: (poi["routeKm"], poi["type"], poi["id"]))
     data = {
         "name": "Rio das Mortes 2026",
         "totalKm": round(total_km, 2),
@@ -181,6 +231,20 @@ def main():
         "controlPoints": control_points,
         "kmMarkers": markers,
         "pois": pois,
+        "poiSource": poi_source,
+        "hospitals": hospitals,
+        "emergencySource": emergency_source,
+        "roads": [
+            {
+                "name": road["name"],
+                "lengthKm": road["lengthKm"],
+                "route": [
+                    [round(lon, 7), round(lat, 7)]
+                    for lon, lat in road["route"]
+                ],
+            }
+            for road in roads
+        ],
         "altRoute": [],
         "routeSource": "Detailed LineString and kilometer points from the team's Mortes 09/2026 KML",
     }
@@ -192,7 +256,8 @@ def main():
     )
     print(
         f"Wrote {OUTPUT.name}: {len(route)} route vertices, {len(control_points)} controls, "
-        f"{len(markers)} markers, {len(pois)} POIs, {total_km:.2f} km, "
+        f"{len(markers)} markers, {len(pois)} POIs, {len(hospitals)} emergency hospitals, {len(roads)} roads, "
+        f"{sum(road['lengthKm'] for road in roads):.1f} road km, {total_km:.2f} river km, "
         f"max marker offset {max_offset * 1000:.6f} m"
     )
 

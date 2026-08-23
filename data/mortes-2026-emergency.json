@@ -1,0 +1,67 @@
+{
+  "source": {
+    "title": "Ministério da Saúde via SoroJá",
+    "sourceDate": "2026-07-03",
+    "checkedAt": "2026-08-22",
+    "officialUrl": "https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/a/animais-peconhentos/hospitais-de-referencia/mato-grosso/view",
+    "sorojaUrl": "https://soroja.com.br/",
+    "warning": "A relação oficial não confirma estoque em tempo real. Ligue antes e acione o SAMU 192 ou os Bombeiros 193 em uma emergência."
+  },
+  "selection": {
+    "rule": "Unidades oficiais diretamente junto ao rio ou às cinco estradas logísticas da viagem.",
+    "excluded": "Unidades apenas regionalmente próximas, mas fora dos corredores efetivamente mapeados."
+  },
+  "hospitals": [
+    {
+      "id": "antivenom-novo-santo-antonio-2311658",
+      "type": "hospital",
+      "name": "Centro de Saúde de Novo Santo Antônio",
+      "city": "Novo Santo Antônio",
+      "state": "MT",
+      "lat": -12.2910772,
+      "lon": -50.9656973,
+      "address": "Rua Antônio Zacarias de Souza, s/n",
+      "phones": ["(66) 3548-1165", "(66) 98434-3549"],
+      "cnes": "2311658",
+      "antivenoms": ["Botrópico", "Crotálico", "Elapídico", "Laquético", "Escorpiônico", "Loxoscélico", "Fonêutrico"],
+      "riverDistanceKm": 1.0,
+      "roadDistanceKm": 0.0,
+      "roadName": "NSA–São Félix do Araguaia",
+      "routeContext": "No final do trecho de canoa, junto ao rio e à estrada para São Félix do Araguaia."
+    },
+    {
+      "id": "antivenom-sao-felix-araguaia-2604426",
+      "type": "hospital",
+      "name": "Hospital Municipal Prefeito João Abreu Luz",
+      "city": "São Félix do Araguaia",
+      "state": "MT",
+      "lat": -11.6205383,
+      "lon": -50.6822801,
+      "address": "Rua Saudade, s/n, Vila São José",
+      "phones": ["(66) 3522-2154"],
+      "cnes": "2604426",
+      "antivenoms": ["Botrópico", "Crotálico", "Elapídico", "Laquético", "Escorpiônico", "Loxoscélico", "Fonêutrico"],
+      "riverDistanceKm": 81.7,
+      "roadDistanceKm": 0.1,
+      "roadName": "NSA–São Félix do Araguaia",
+      "routeContext": "Diretamente na estrada logística entre Novo Santo Antônio e São Félix do Araguaia."
+    },
+    {
+      "id": "antivenom-ribeirao-cascalheira-2472791",
+      "type": "hospital",
+      "name": "Hospital Municipal Cristo Rei",
+      "city": "Ribeirão Cascalheira",
+      "state": "MT",
+      "lat": -12.9439365,
+      "lon": -51.8259869,
+      "address": "Rua São Paulo, 250, Centro",
+      "phones": ["(66) 3489-1050"],
+      "cnes": "2472791",
+      "antivenoms": ["Botrópico", "Crotálico", "Escorpiônico"],
+      "riverDistanceKm": 88.0,
+      "roadDistanceKm": 0.6,
+      "roadName": "Ribeirão Cascalheira–Vila Berrante",
+      "routeContext": "No corredor da estrada logística de acesso a Vila Berrante."
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+tiles/** binary
+vendor/leaflet/** linguist-vendored
+vendor/leaflet/** -whitespace
+data/*.kml -whitespace
+route-data.js linguist-generated=true
+tile-manifest.js linguist-generated=true
