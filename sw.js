@@ -65,6 +65,7 @@ self.addEventListener('fetch', event => {
 self.installOfflineRecovery({
   cacheName: CACHE_NAME,
   cachePrefix: CACHE_PREFIX,
+  expectedPackageId: typeof TILE_PACKAGE_META !== 'undefined' ? TILE_PACKAGE_META.id : null,
   tilePathFragment: '/tiles/',
   getTileList
 });

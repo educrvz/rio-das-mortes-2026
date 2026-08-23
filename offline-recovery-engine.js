@@ -81,8 +81,8 @@
     }));
   }
 
-  async function initializeStored(cache, state, requiredUrls) {
-    if (Number.isInteger(state.stored) && state.stored >= 0 && state.stored <= state.total) return;
+  async function initializeStored(cache, state, requiredUrls, reconcile = false) {
+    if (!reconcile && Number.isInteger(state.stored) && state.stored >= 0 && state.stored <= state.total) return;
     const requiredSet = new Set(requiredUrls);
     const keys = await cache.keys();
     state.stored = keys.reduce(
@@ -90,39 +90,46 @@
     );
   }
 
-  async function readState(cache, progressUrl, packageId, total, tileUrls, requiredUrls) {
+  async function readState(cache, progressUrl, packageId, total, tileUrls, requiredUrls, reconcileStored) {
     const response = await cache.match(progressUrl);
     if (!response) {
       const fresh = freshState(packageId, total);
       await initializeStored(cache, fresh, requiredUrls);
       return fresh;
     }
+    let saved;
     try {
-      const saved = await response.json();
-      const validCursor = Number.isInteger(saved.cursor) && saved.cursor >= 0 && saved.cursor <= total;
-      if (saved.version === undefined && saved.total === total && validCursor) {
-        const migrated = freshState(packageId, total);
-        migrated.cursor = saved.cursor;
-        await initializeStored(cache, migrated, requiredUrls);
-        await writeState(cache, progressUrl, migrated);
-        return migrated;
-      }
-      if (
-        saved.version !== STATE_VERSION || saved.packageId !== packageId || saved.total !== total
-        || !validCursor || !PHASES.has(saved.phase) || !Array.isArray(saved.failed)
-      ) throw new Error('invalid recovery state');
-      saved.failed = normalizeFailures(saved.failed, new Set(tileUrls));
-      saved.onlineRecoveryUsed = Boolean(saved.onlineRecoveryUsed);
-      saved.circuit = normalizeCircuit(saved.circuit);
-      await initializeStored(cache, saved, requiredUrls);
-      await writeState(cache, progressUrl, saved);
-      return saved;
-    } catch (error) {
+      saved = await response.json();
+    } catch (_) {
       await cache.delete(progressUrl);
       const fresh = freshState(packageId, total);
       await initializeStored(cache, fresh, requiredUrls);
       return fresh;
     }
+    const validCursor = saved && Number.isInteger(saved.cursor)
+      && saved.cursor >= 0 && saved.cursor <= total;
+    if (saved?.version === undefined && saved?.total === total && validCursor) {
+      const migrated = freshState(packageId, total);
+      migrated.cursor = saved.cursor;
+      await initializeStored(cache, migrated, requiredUrls);
+      await writeState(cache, progressUrl, migrated);
+      return migrated;
+    }
+    if (
+      saved?.version !== STATE_VERSION || saved?.packageId !== packageId || saved?.total !== total
+      || !validCursor || !PHASES.has(saved?.phase) || !Array.isArray(saved?.failed)
+    ) {
+      await cache.delete(progressUrl);
+      const fresh = freshState(packageId, total);
+      await initializeStored(cache, fresh, requiredUrls);
+      return fresh;
+    }
+    saved.failed = normalizeFailures(saved.failed, new Set(tileUrls));
+    saved.onlineRecoveryUsed = Boolean(saved.onlineRecoveryUsed);
+    saved.circuit = normalizeCircuit(saved.circuit);
+    await initializeStored(cache, saved, requiredUrls, reconcileStored);
+    await writeState(cache, progressUrl, saved);
+    return saved;
   }
 
   function failureFor(state, url) {
@@ -205,10 +212,11 @@
   }
 
   self.installOfflineRecovery = function installOfflineRecovery(config) {
-    const { cacheName, cachePrefix, tilePathFragment, getTileList } = config;
+    const { cacheName, cachePrefix, tilePathFragment, getTileList, expectedPackageId } = config;
     let active = null;
     const controllers = new Set();
     const runtimeByPackage = new Map();
+    const reconciledPackages = new Set();
     let manifestSnapshot = null;
 
     function manifestForScope() {
@@ -269,7 +277,6 @@
           cleanWindows: 0,
           completed: 0,
           retryableFailures: 0,
-          networkTimeoutFailures: 0,
           pressure: false,
           pressureAdjusted: false
         });
@@ -280,19 +287,15 @@
     function resetWindow(runtime) {
       runtime.completed = 0;
       runtime.retryableFailures = 0;
-      runtime.networkTimeoutFailures = 0;
       runtime.pressure = false;
       runtime.pressureAdjusted = false;
     }
 
     function registerOutcome(runtime, state, outcome) {
-      if (outcome.cached || outcome.aborted || outcome.storageBlocked) return false;
+      if (outcome.cached || outcome.aborted || outcome.storageBlocked || outcome.cacheRuntimeBlocked) return false;
       runtime.completed += 1;
       if (['retryable', 'rate-limit', 'timeout', 'network'].includes(outcome.kind)) {
         runtime.retryableFailures += 1;
-      }
-      if (outcome.kind === 'network' || outcome.kind === 'timeout') {
-        runtime.networkTimeoutFailures += 1;
       }
       if (outcome.kind === 'timeout' || outcome.kind === 'rate-limit') {
         runtime.pressure = true;
@@ -320,7 +323,7 @@
         runtime.cleanWindows = 0;
       }
 
-      if ((runtime.networkTimeoutFailures / WINDOW_SIZE) >= 0.75) {
+      if ((runtime.retryableFailures / WINDOW_SIZE) >= 0.75) {
         state.circuit.highFailureWindows += 1;
       } else {
         state.circuit.highFailureWindows = 0;
@@ -347,8 +350,9 @@
           try {
             await cache.put(item.url, response);
           } catch (error) {
-            if (isQuotaError(error)) return { storageBlocked: true, kind: 'storage', advance: false };
-            throw error;
+            return isQuotaError(error)
+              ? { storageBlocked: true, kind: 'storage', advance: false }
+              : { cacheRuntimeBlocked: true, kind: 'cache-runtime', advance: false };
           }
           state.stored = Math.min(state.total, state.stored + 1);
           clearFailure(state, item.url);
@@ -368,7 +372,8 @@
       let position = 0;
       let primaryAdvanced = 0;
       let storageBlocked = false;
-      while (position < work.length && !state.circuit.open && !storageBlocked) {
+      let cacheRuntimeBlocked = false;
+      while (position < work.length && !state.circuit.open && !storageBlocked && !cacheRuntimeBlocked) {
         const remainingInWindow = WINDOW_SIZE - runtime.completed;
         const size = Math.min(runtime.concurrency, remainingInWindow, work.length - position);
         const batch = work.slice(position, position + size);
@@ -376,11 +381,13 @@
         for (let index = 0; index < outcomes.length; index++) {
           const outcome = outcomes[index];
           if (outcome.storageBlocked) storageBlocked = true;
+          if (outcome.cacheRuntimeBlocked) cacheRuntimeBlocked = true;
           if (batch[index].primary && outcome.advance && primaryAdvanced === batch[index].primaryOffset) {
             primaryAdvanced += 1;
           }
           registerOutcome(runtime, state, outcome);
         }
+        if (cacheRuntimeBlocked) return { storageBlocked: false, cacheRuntimeBlocked: true };
         position += batch.length;
         state.cursor += primaryAdvanced;
         work.forEach(item => { if (item.primary) item.primaryOffset -= primaryAdvanced; });
@@ -389,11 +396,12 @@
           : state.cursor < state.total ? 'primary' : 'verifying';
         await writeState(cache, progressUrl, state);
         await broadcast({
+          packageId: state.packageId,
           type: 'cache-progress', loaded: state.cursor, stored: state.stored, failed: state.failed.length,
           total: state.total, concurrency: runtime.concurrency
         });
       }
-      return { storageBlocked };
+      return { storageBlocked, cacheRuntimeBlocked };
     }
 
     async function handleOpenCircuit(cache, progressUrl, state, tileUrls, runtime) {
@@ -433,6 +441,7 @@
         state.phase = 'exhausted';
         await writeState(cache, progressUrl, state);
         await broadcast({
+          packageId: state.packageId,
           type: 'package-integrity-blocked', affected: terminal.length,
           urls: terminal.map(entry => entry.url), loaded: state.cursor, stored,
           failed: state.failed.length, total: state.total
@@ -442,6 +451,7 @@
       if (state.circuit.open) {
         const exhausted = state.phase === 'exhausted';
         await broadcast({
+          packageId: state.packageId,
           type: exhausted ? 'cache-recovery-exhausted' : 'cache-recovery-wait',
           nextRetryAt: exhausted ? 0 : state.circuit.nextProbeAt,
           loaded: state.cursor, stored, failed: state.failed.length, total: state.total,
@@ -454,6 +464,7 @@
         state.phase = 'exhausted';
         await writeState(cache, progressUrl, state);
         await broadcast({
+          packageId: state.packageId,
           type: 'cache-recovery-exhausted', loaded: state.cursor, stored,
           failed: state.failed.length, total: state.total
         });
@@ -464,6 +475,7 @@
         state.phase = 'waiting';
         await writeState(cache, progressUrl, state);
         await broadcast({
+          packageId: state.packageId,
           type: 'cache-recovery-wait', nextRetryAt, loaded: state.cursor, stored,
           failed: state.failed.length, total: state.total
         });
@@ -471,6 +483,7 @@
         state.phase = 'recovery';
         await writeState(cache, progressUrl, state);
         await broadcast({
+          packageId: state.packageId,
           type: 'cache-chunk-complete', loaded: state.cursor, stored,
           failed: state.failed.length, total: state.total
         });
@@ -478,13 +491,16 @@
     }
 
     async function precacheTiles(packageId, expectedCount, options) {
+      const activePackageId = packageId || 'current';
       const cache = await caches.open(cacheName);
       const { tileUrls, total, requiredUrls, requiredSet } = manifestForScope();
       if (total !== expectedCount) {
-        await broadcast({ type: 'cache-incomplete', loaded: 0, stored: 0, failed: total, total });
+        await broadcast({
+          type: 'cache-incomplete', packageId: activePackageId,
+          loaded: 0, stored: 0, failed: total, total
+        });
         return;
       }
-      const activePackageId = packageId || 'current';
       const markerUrl = new URL(`offline-package-${encodeURIComponent(activePackageId)}.ready`, self.registration.scope).href;
       const progressUrl = new URL(`offline-package-${encodeURIComponent(activePackageId)}.progress`, self.registration.scope).href;
 
@@ -494,8 +510,11 @@
         const storedTileUrls = new Set(keys.map(request => request.url)
           .filter(url => new URL(url).pathname.includes(tilePathFragment)));
         if (storedTileUrls.size === total && requiredUrls.every(url => storedTileUrls.has(url))) {
-          await broadcast({ type: 'cache-complete', loaded: total, stored: total, reused: total, total });
           await removeSupersededCaches();
+          await broadcast({
+            type: 'cache-complete', packageId: activePackageId,
+            loaded: total, stored: total, reused: total, total
+          });
           return;
         }
         await cache.delete(markerUrl);
@@ -519,8 +538,10 @@
       }
 
       const state = await readState(
-        cache, progressUrl, activePackageId, total, tileUrls, requiredUrls
+        cache, progressUrl, activePackageId, total, tileUrls, requiredUrls,
+        !reconciledPackages.has(activePackageId)
       );
+      reconciledPackages.add(activePackageId);
       if (options.forceRetry) {
         resetRetryableBudgets(state);
         runtimeByPackage.delete(activePackageId);
@@ -531,6 +552,9 @@
       ) {
         resetRetryableBudgets(state);
         state.onlineRecoveryUsed = true;
+      }
+      if (options.foregroundTransition && state.circuit.open) {
+        state.circuit.nextProbeAt = now();
       }
       const currentRuntime = runtimeFor(activePackageId);
       await writeState(cache, progressUrl, state);
@@ -554,10 +578,18 @@
 
       if (work.length) {
         const result = await runWork(cache, progressUrl, state, work, currentRuntime);
+        if (result.cacheRuntimeBlocked) {
+          await broadcast({
+            type: 'cache-runtime-blocked', packageId: state.packageId,
+            loaded: state.cursor, stored: state.stored, failed: state.failed.length, total
+          });
+          return;
+        }
         if (result.storageBlocked) {
           state.phase = 'storage-blocked';
           await writeState(cache, progressUrl, state);
           await broadcast({
+            packageId: state.packageId,
             type: 'storage-blocked', loaded: state.cursor,
             stored: state.stored, failed: state.failed.length, total
           });
@@ -571,6 +603,7 @@
       }
       if (state.cursor < total) {
         await broadcast({
+          packageId: state.packageId,
           type: 'cache-chunk-complete', loaded: state.cursor,
           stored: state.stored, failed: state.failed.length,
           total, concurrency: currentRuntime.concurrency
@@ -608,14 +641,20 @@
           if (isQuotaError(error)) {
             state.phase = 'storage-blocked';
             await writeState(cache, progressUrl, state);
-            await broadcast({ type: 'storage-blocked', loaded: total, stored: total, failed: 0, total });
+            await broadcast({
+              type: 'storage-blocked', packageId: state.packageId,
+              loaded: total, stored: total, failed: 0, total
+            });
             return;
           }
           throw error;
         }
         await cache.delete(progressUrl);
         await removeSupersededCaches();
-        await broadcast({ type: 'cache-complete', loaded: total, stored: total, failed: 0, total });
+        await broadcast({
+          type: 'cache-complete', packageId: state.packageId,
+          loaded: total, stored: total, failed: 0, total
+        });
         return;
       }
 
@@ -625,6 +664,7 @@
         state.phase = 'recovery';
         await writeState(cache, progressUrl, state);
         await broadcast({
+          packageId: state.packageId,
           type: 'cache-chunk-complete', loaded: firstMissing,
           stored: total - missingUrls.length, failed: state.failed.length, total
         });
@@ -634,35 +674,71 @@
       await reportBlockedOrWaiting(cache, progressUrl, state, currentRuntime);
     }
 
-    self.addEventListener('message', event => {
-      if (event.data?.type !== 'precache-tiles') return;
-      const packageId = event.data.packageId || 'current';
-      const forceRetry = event.data.forceRetry === true;
-      if (active && !forceRetry && active.packageId === packageId) {
-        event.waitUntil(active.promise);
-        return;
-      }
-      if (forceRetry && active) abortActive();
+    function queuePrecache(packageId, expectedCount, options, predecessor = active?.promise) {
+      const descriptor = { packageId, ...options, cancelled: false, promise: null };
       const run = async () => {
+        if (descriptor.cancelled) return;
         try {
-          await precacheTiles(packageId, event.data.expectedCount, {
-            forceRetry,
-            onlineTransition: event.data.onlineTransition === true
-          });
+          await precacheTiles(packageId, expectedCount, options);
         } catch (error) {
-          if (!isQuotaError(error)) throw error;
           await broadcast({
-            type: 'storage-blocked', loaded: 0, stored: 0,
-            failed: event.data.expectedCount, total: event.data.expectedCount
+            type: isQuotaError(error) ? 'storage-blocked' : 'cache-runtime-blocked',
+            packageId, loaded: 0, stored: 0,
+            failed: 0, total: expectedCount
           });
         }
       };
-      const queued = (active?.promise || Promise.resolve()).then(run, run);
-      const tracked = queued.finally(() => {
-        if (active?.promise === tracked) active = null;
+      const queued = (predecessor || Promise.resolve()).then(run, run);
+      descriptor.promise = queued.finally(() => {
+        if (active === descriptor) active = null;
       });
-      active = { packageId, promise: tracked };
-      event.waitUntil(tracked);
+      active = descriptor;
+      return descriptor.promise;
+    }
+
+    self.addEventListener('message', event => {
+      if (event.data?.type !== 'precache-tiles') return;
+      const packageId = event.data.packageId || 'current';
+      if (expectedPackageId && packageId !== expectedPackageId) {
+        event.waitUntil(broadcast({
+          type: 'package-mismatch', packageId, expectedPackageId,
+          loaded: 0, stored: 0, failed: 0,
+          total: Number.isInteger(event.data.expectedCount) ? event.data.expectedCount : 0
+        }));
+        return;
+      }
+      const forceRetry = event.data.forceRetry === true;
+      const onlineTransition = event.data.onlineTransition === true;
+      const foregroundTransition = event.data.foregroundTransition === true;
+      if (active && active.packageId === packageId) {
+        if (forceRetry) {
+          if (active.forceRetry) {
+            event.waitUntil(active.promise);
+            return;
+          }
+          active.cancelled = true;
+          abortActive();
+        } else if (onlineTransition && !active.onlineTransition) {
+          event.waitUntil(queuePrecache(packageId, event.data.expectedCount, {
+            forceRetry: false, onlineTransition: true, foregroundTransition: false
+          }));
+          return;
+        } else if (foregroundTransition && !active.foregroundTransition && !active.onlineTransition) {
+          event.waitUntil(queuePrecache(packageId, event.data.expectedCount, {
+            forceRetry: false, onlineTransition: false, foregroundTransition: true
+          }));
+          return;
+        } else {
+          event.waitUntil(active.promise);
+          return;
+        }
+      } else if (forceRetry && active) {
+        active.cancelled = true;
+        abortActive();
+      }
+      event.waitUntil(queuePrecache(packageId, event.data.expectedCount, {
+        forceRetry, onlineTransition, foregroundTransition
+      }));
     });
   };
 })();

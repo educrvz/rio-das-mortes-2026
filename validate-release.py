@@ -229,6 +229,8 @@ def validate_shell():
         "cache-recovery-wait",
         "cache-recovery-exhausted",
         "storage-blocked",
+        "cache-runtime-blocked",
+        "package-mismatch",
         "package-integrity-blocked",
         "offlinePackageReady = true",
         "setTimeout(hideLoading, 1500)",
@@ -295,6 +297,8 @@ def validate_offline_recovery_contract():
         "cache-recovery-wait",
         "cache-recovery-exhausted",
         "storage-blocked",
+        "cache-runtime-blocked",
+        "package-mismatch",
         "package-integrity-blocked",
     ]
     if any(token not in engine for token in required_engine_tokens):
@@ -313,6 +317,7 @@ def validate_offline_recovery_contract():
             "self.installOfflineRecovery({",
             "cacheName: CACHE_NAME",
             "cachePrefix: CACHE_PREFIX",
+            "expectedPackageId:",
             "getTileList",
         ]
         if any(token not in worker for token in required_worker_tokens):

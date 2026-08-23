@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import vm from 'node:vm';
 
 const read = relative => fs.readFileSync(new URL(`../${relative}`, import.meta.url), 'utf8');
 
@@ -50,27 +51,174 @@ assert.match(
   /hydrateStoredProgress\(packageId, total\);[\s\S]*?prepareOfflineStorage\(requiredBytes, total\)/,
   'preflight must run after persisted progress is restored'
 );
-assert.match(
-  app,
-  /cache-progress[\s\S]*?updateProgress\(event\.data\.total, event\.data\.stored, event\.data\.failed\)/,
-  'continuous worker progress must use its confirmed stored count'
-);
-assert.match(app, /setTimeout\(hideLoading, 1500\)/);
 assert.doesNotMatch(
   app,
   /register\([\s\S]*?\.catch\(\(\) => \{\s*hideLoading\(\)/,
   'a worker error must remain on the download screen'
 );
 assert.match(app, /function scheduleRecovery\(nextRetryAt\)/);
-assert.match(app, /cache-recovery-wait/);
-assert.match(app, /cache-recovery-exhausted/);
-assert.match(app, /storage-blocked/);
-assert.match(app, /package-integrity-blocked/);
-assert.match(app, /forceRetry: forceRetry === true/);
-assert.match(app, /onlineTransition: onlineTransition === true/);
-assert.match(app, /window\.addEventListener\('offline'/);
-assert.match(app, /window\.addEventListener\('online'/);
-assert.match(app, /document\.addEventListener\('visibilitychange'/);
+
+{
+  const handlers = {};
+  const posted = [];
+  const elements = new Map();
+  const storedValues = new Map();
+  const timers = new Map();
+  let nextTimer = 1;
+  let reloads = 0;
+  const element = id => {
+    if (!elements.has(id)) {
+      elements.set(id, {
+        id,
+        textContent: '',
+        style: { display: id === 'loading-overlay' ? 'block' : 'none' },
+        attributes: {},
+        setAttribute(name, value) { this.attributes[name] = value; }
+      });
+    }
+    return elements.get(id);
+  };
+  const recoveryHandlerStart = app.indexOf("navigator.serviceWorker.addEventListener('message'");
+  const recoveryHandlerEnd = app.indexOf('\n  const workerUrl', recoveryHandlerStart);
+  assert.notEqual(recoveryHandlerStart, -1);
+  assert.notEqual(recoveryHandlerEnd, -1);
+  const harnessSource = [
+    app.match(/let lastProgress = \{ stored: 0, total: 0 \};/)[0],
+    app.match(/let stallTimer = null;/)[0],
+    app.match(/let recoveryTimer = null;/)[0],
+    app.match(/let storagePrepared = false;/)[0],
+    app.match(/let offlineDownloadActive = false;/)[0],
+    app.match(/let wentOffline = navigator\.onLine === false;/)[0],
+    app.match(/let terminalPackageBlocked = false;/)[0],
+    app.match(/let offlinePackageReady = false;/)[0],
+    app.match(/let currentPackageId = null;/)[0],
+    "const OFFLINE_PROGRESS_KEY_PREFIX = 'test-offline-progress';",
+    app.slice(app.indexOf('function packageProgressKey'), app.indexOf('async function prepareOfflineStorage')),
+    'async function prepareOfflineStorage() { return true; }',
+    app.slice(app.indexOf('async function startTilePreCache'), app.indexOf("window.addEventListener('beforeunload'")),
+    app.slice(recoveryHandlerStart, recoveryHandlerEnd),
+    app.match(/window\.addEventListener\('offline',[\s\S]*?\n}\);/)[0],
+    app.match(/window\.addEventListener\('online',[\s\S]*?\n}\);/)[0],
+    app.match(/document\.addEventListener\('visibilitychange',[\s\S]*?\n}\);/)[0]
+  ].join('\n');
+  const context = vm.createContext({
+    TILE_PACKAGE_META: { id: 'test-package', count: 10, bytes: 1000 },
+    Date: { now: () => 1_000 },
+    navigator: {
+      onLine: false,
+      serviceWorker: {
+        controller: { postMessage(message) { posted.push(message); } },
+        addEventListener(type, handler) { handlers[type] = handler; }
+      }
+    },
+    window: {
+      location: { reload() { reloads++; } },
+      addEventListener(type, handler) { handlers[type] = handler; }
+    },
+    document: {
+      hidden: false,
+      getElementById: element,
+      addEventListener(type, handler) { handlers[type] = handler; }
+    },
+    localStorage: {
+      getItem(key) { return storedValues.get(key) ?? null; },
+      setItem(key, value) { storedValues.set(key, String(value)); },
+      removeItem(key) { storedValues.delete(key); }
+    },
+    setTimeout(callback, delay) {
+      const id = nextTimer++;
+      timers.set(id, { callback, delay });
+      return id;
+    },
+    clearTimeout(id) { timers.delete(id); },
+    console
+  });
+  vm.runInContext(harnessSource, context);
+  const flush = () => new Promise(resolve => setImmediate(resolve));
+  const dispatch = data => handlers.message({ data: { packageId: 'test-package', ...data } });
+  const runTimer = delay => {
+    const match = [...timers].find(([, timer]) => timer.delay === delay);
+    assert.ok(match, `expected an active ${delay}ms timer`);
+    timers.delete(match[0]);
+    match[1].callback();
+  };
+
+  await vm.runInContext('startTilePreCache()', context);
+  assert.equal(JSON.stringify(posted.at(-1)), JSON.stringify({
+    type: 'precache-tiles', packageId: 'test-package', expectedCount: 10,
+    forceRetry: false, onlineTransition: false, foregroundTransition: false
+  }), 'initial download posts all recovery options explicitly');
+
+  handlers.online();
+  await flush();
+  handlers.online();
+  handlers.visibilitychange();
+  await flush();
+  assert.equal(posted.filter(message => message.onlineTransition).length, 1,
+    'initial offline state grants exactly one online recovery');
+  assert.equal(posted.at(-1).foregroundTransition, true,
+    'foregrounding requests an immediate circuit probe');
+
+  const beforeStaleMessage = element('progress-text').textContent;
+  handlers.message({
+    data: {
+      type: 'cache-recovery-exhausted', packageId: 'old-package',
+      total: 10, stored: 0, failed: 10
+    }
+  });
+  assert.equal(element('progress-text').textContent, beforeStaleMessage,
+    'messages from an old package cannot change the current UI');
+
+  dispatch({ type: 'cache-recovery-wait', total: 10, stored: 3, failed: 2, nextRetryAt: 5_000 });
+  assert.equal(element('resume-btn').style.display, 'none');
+  assert.equal(element('loading-overlay').style.display, 'block', 'waiting cannot reveal the map');
+  assert.equal([...timers.values()].some(timer => timer.delay === 4_000), true,
+    'waiting schedules recovery for the worker deadline');
+  const saved = JSON.parse(storedValues.get('test-offline-progress-test-package'));
+  assert.equal(saved.stored, 3, 'confirmed worker count is persisted');
+  runTimer(4_000);
+  await flush();
+  assert.equal(posted.at(-1).forceRetry, false, 'scheduled recovery is an ordinary continuation');
+
+  dispatch({ type: 'cache-recovery-exhausted', total: 10, stored: 3, failed: 2 });
+  assert.equal(element('resume-btn').style.display, 'inline-block');
+  element('resume-btn').onclick();
+  await flush();
+  assert.equal(posted.at(-1).forceRetry, true, 'manual recovery posts an explicit force retry');
+  assert.equal(element('loading-overlay').style.display, 'block', 'exhaustion cannot reveal the map');
+
+  dispatch({ type: 'storage-blocked', total: 10, stored: 4, failed: 1 });
+  assert.equal(element('resume-btn').style.display, 'inline-block');
+  assert.equal(element('resume-btn').textContent, 'Verificar espaço e tentar novamente');
+  assert.equal(element('loading-overlay').style.display, 'block', 'storage failure cannot reveal the map');
+
+  dispatch({ type: 'package-integrity-blocked', total: 10, stored: 4, failed: 1 });
+  assert.equal(element('resume-btn').style.display, 'none');
+  assert.match(element('progress-text').textContent, /Arquivos do pacote não estão disponíveis/);
+  assert.equal(element('loading-overlay').style.display, 'block', 'integrity failure cannot reveal the map');
+
+  dispatch({ type: 'cache-runtime-blocked', total: 10, stored: 0, failed: 0 });
+  assert.equal(element('resume-btn').style.display, 'inline-block');
+  assert.equal(element('resume-btn').textContent, 'Reiniciar e tentar novamente');
+  element('resume-btn').onclick();
+  assert.equal(reloads, 1, 'Cache API failures offer a working reload action');
+  assert.equal(element('loading-overlay').style.display, 'block', 'Cache API failure cannot reveal the map');
+
+  dispatch({
+    type: 'package-mismatch', expectedPackageId: 'new-package',
+    total: 10, stored: 0, failed: 0
+  });
+  element('resume-btn').onclick();
+  assert.equal(reloads, 2, 'package mismatch offers a safe app restart');
+
+  dispatch({ type: 'cache-complete', total: 10, stored: 10, failed: 0 });
+  assert.equal(element('progress-text').textContent, 'Mapa offline pronto ✓');
+  assert.equal(element('loading-overlay').style.display, 'block', 'completion waits for its display delay');
+  runTimer(1_500);
+  assert.equal(element('loading-overlay').style.opacity, '0');
+  runTimer(500);
+  assert.equal(element('loading-overlay').style.display, 'none', 'only exact completion reveals the map');
+}
 assert.match(app, /if \(\(terminalPackageBlocked \|\| offlinePackageReady\) && !forceRetry\) return;/);
 assert.match(
   app,
@@ -85,28 +233,8 @@ assert.match(
 );
 assert.match(
   app,
-  /cache-complete[\s\S]*?offlinePackageReady = true;/,
-  'only worker exact completion can mark the package ready'
-);
-assert.match(
-  app,
-  /package-integrity-blocked[\s\S]*?Arquivos do pacote não estão disponíveis na publicação/,
-  'a missing deployed tile must not be presented as an ordinary retry'
-);
-assert.match(
-  app,
-  /cache-complete[\s\S]*?hideLoading/,
-  'only the worker exact-complete message may reveal the map'
-);
-assert.match(
-  app,
   /const remainingBytes = Math\.ceil\(requiredBytes \* \(1 - confirmedStored \/ total\)\);/,
   'storage preflight must reserve space only for unconfirmed tiles'
-);
-assert.match(
-  app,
-  /storagePrepared = false;[\s\S]*?showManualRetry\('O navegador não tem espaço suficiente/,
-  'a storage-blocked worker result must force the manual retry to re-estimate space'
 );
 
 for (const prefix of ['', 'google/']) {

@@ -18,7 +18,7 @@ let stallTimer = null;
 let recoveryTimer = null;
 let storagePrepared = false;
 let offlineDownloadActive = false;
-let wentOffline = false;
+let wentOffline = navigator.onLine === false;
 let terminalPackageBlocked = false;
 let offlinePackageReady = false;
 let currentPackageId = null;
@@ -749,7 +749,9 @@ async function prepareOfflineStorage(requiredBytes, total) {
   return true;
 }
 
-async function startTilePreCache({ forceRetry = false, onlineTransition = false } = {}) {
+async function startTilePreCache({
+  forceRetry = false, onlineTransition = false, foregroundTransition = false
+} = {}) {
   if (!navigator.serviceWorker.controller) {
     document.getElementById('progress-text').textContent = 'Ativando o modo offline…';
     return;
@@ -794,7 +796,8 @@ async function startTilePreCache({ forceRetry = false, onlineTransition = false 
     packageId,
     expectedCount: total,
     forceRetry: forceRetry === true,
-    onlineTransition: onlineTransition === true
+    onlineTransition: onlineTransition === true,
+    foregroundTransition: foregroundTransition === true
   });
 }
 
@@ -809,6 +812,8 @@ configureAvailableLayers();
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', event => {
+    const expectedPackageId = typeof TILE_PACKAGE_META !== 'undefined' ? TILE_PACKAGE_META.id : 'current';
+    if (event.data?.packageId !== expectedPackageId) return;
     if (event.data.type === 'cache-progress') {
       updateProgress(event.data.total, event.data.stored, event.data.failed);
     }
@@ -866,6 +871,12 @@ if ('serviceWorker' in navigator) {
       document.getElementById('progress-text').textContent =
         'O pacote publicado não confere com a lista de imagens. Aguarde uma atualização do mapa.';
     }
+    if (event.data.type === 'cache-runtime-blocked') {
+      showDownloadBlocked('O armazenamento offline do navegador falhou. Reinicie o app para tentar novamente.');
+    }
+    if (event.data.type === 'package-mismatch') {
+      showDownloadBlocked('O app foi atualizado. Reinicie para usar o pacote de imagens atual.');
+    }
   });
   const workerUrl = new URL(APP_CONFIG.serviceWorkerUrl || 'sw.js', window.location.href).href;
   navigator.serviceWorker.register(workerUrl).then(() => {
@@ -899,7 +910,7 @@ window.addEventListener('online', () => {
 });
 
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) startTilePreCache();
+  if (!document.hidden) startTilePreCache({ foregroundTransition: true });
 });
 map.on('movestart', () => {
   if (watchId !== null) {
