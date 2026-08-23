@@ -209,6 +209,20 @@
     let active = null;
     const controllers = new Set();
     const runtimeByPackage = new Map();
+    let manifestSnapshot = null;
+
+    function manifestForScope() {
+      if (manifestSnapshot) return manifestSnapshot;
+      const tileUrls = getTileList();
+      const requiredUrls = tileUrls.map(url => new URL(url, self.registration.scope).href);
+      manifestSnapshot = {
+        tileUrls,
+        total: tileUrls.length,
+        requiredUrls,
+        requiredSet: new Set(requiredUrls)
+      };
+      return manifestSnapshot;
+    }
 
     async function broadcast(message) {
       const clients = await self.clients.matchAll();
@@ -412,7 +426,7 @@
       return false;
     }
 
-    async function reportBlockedOrWaiting(cache, progressUrl, state, requiredSet, runtime) {
+    async function reportBlockedOrWaiting(cache, progressUrl, state, runtime) {
       const stored = state.stored;
       const terminal = state.failed.filter(entry => entry.terminal);
       if (terminal.length) {
@@ -465,8 +479,7 @@
 
     async function precacheTiles(packageId, expectedCount, options) {
       const cache = await caches.open(cacheName);
-      const tileUrls = getTileList();
-      const total = tileUrls.length;
+      const { tileUrls, total, requiredUrls, requiredSet } = manifestForScope();
       if (total !== expectedCount) {
         await broadcast({ type: 'cache-incomplete', loaded: 0, stored: 0, failed: total, total });
         return;
@@ -474,9 +487,6 @@
       const activePackageId = packageId || 'current';
       const markerUrl = new URL(`offline-package-${encodeURIComponent(activePackageId)}.ready`, self.registration.scope).href;
       const progressUrl = new URL(`offline-package-${encodeURIComponent(activePackageId)}.progress`, self.registration.scope).href;
-      const requiredUrls = tileUrls.map(url => new URL(url, self.registration.scope).href);
-      const requiredSet = new Set(requiredUrls);
-      const relativeByUrl = new Map(requiredUrls.map((url, index) => [url, tileUrls[index]]));
 
       const ready = await cache.match(markerUrl);
       if (ready) {
@@ -526,7 +536,7 @@
       await writeState(cache, progressUrl, state);
 
       if (!(await handleOpenCircuit(cache, progressUrl, state, tileUrls, currentRuntime))) {
-        await reportBlockedOrWaiting(cache, progressUrl, state, requiredSet, currentRuntime);
+        await reportBlockedOrWaiting(cache, progressUrl, state, currentRuntime);
         return;
       }
 
@@ -556,7 +566,7 @@
       }
 
       if (state.circuit.open) {
-        await reportBlockedOrWaiting(cache, progressUrl, state, requiredSet, currentRuntime);
+        await reportBlockedOrWaiting(cache, progressUrl, state, currentRuntime);
         return;
       }
       if (state.cursor < total) {
@@ -577,6 +587,7 @@
         .map(request => cache.delete(request)));
       const missingUrls = requiredUrls.filter(url => !storedUrls.has(url));
       state.stored = total - missingUrls.length;
+      const relativeByUrl = new Map(requiredUrls.map((url, index) => [url, tileUrls[index]]));
       const missingRelative = new Set(missingUrls.map(url => relativeByUrl.get(url)));
       state.failed = state.failed.filter(entry => missingRelative.has(entry.url));
       const untrackedMissing = [...missingRelative].filter(url => !failureFor(state, url));
@@ -609,7 +620,8 @@
       }
 
       if (untrackedMissing.length) {
-        const firstMissing = tileUrls.findIndex(url => untrackedMissing.includes(url));
+        const untrackedMissingSet = new Set(untrackedMissing);
+        const firstMissing = tileUrls.findIndex(url => untrackedMissingSet.has(url));
         state.phase = 'recovery';
         await writeState(cache, progressUrl, state);
         await broadcast({
@@ -619,7 +631,7 @@
         return;
       }
 
-      await reportBlockedOrWaiting(cache, progressUrl, state, requiredSet, currentRuntime);
+      await reportBlockedOrWaiting(cache, progressUrl, state, currentRuntime);
     }
 
     self.addEventListener('message', event => {

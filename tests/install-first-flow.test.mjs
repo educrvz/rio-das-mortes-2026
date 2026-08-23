@@ -52,7 +52,7 @@ assert.match(
 );
 assert.match(
   app,
-  /cache-progress[\s\S]*?event\.data\.stored, event\.data\.failed/,
+  /cache-progress[\s\S]*?updateProgress\(event\.data\.total, event\.data\.stored, event\.data\.failed\)/,
   'continuous worker progress must use its confirmed stored count'
 );
 assert.match(app, /setTimeout\(hideLoading, 1500\)/);

@@ -13,7 +13,7 @@ let noteLayers = [];
 let noteCreationActive = false;
 let speedSamples = [];
 let lastNoteEditorOpenedAt = 0;
-let lastProgress = { loaded: 0, stored: 0, total: 0, timestamp: 0 };
+let lastProgress = { stored: 0, total: 0 };
 let stallTimer = null;
 let recoveryTimer = null;
 let storagePrepared = false;
@@ -618,7 +618,7 @@ function hydrateStoredProgress(packageId, total) {
       saved?.packageId === packageId && saved.total === total
       && Number.isInteger(saved.stored) && saved.stored >= 0 && saved.stored <= total
     ) {
-      lastProgress = { loaded: saved.stored, stored: saved.stored, total, timestamp: Date.now() };
+      lastProgress = { stored: saved.stored, total };
       return;
     }
     if (saved) localStorage.removeItem(packageProgressKey(packageId));
@@ -636,7 +636,7 @@ function persistStoredProgress() {
   } catch (error) {}
 }
 
-function updateProgress(loaded, total, stored = lastProgress.stored, failed = 0, reused = 0) {
+function updateProgress(total, stored = lastProgress.stored, failed = 0) {
   if (!total) return;
   const previousStored = lastProgress.total === total ? lastProgress.stored : 0;
   const visibleStored = Math.max(previousStored, Math.min(stored, total));
@@ -651,7 +651,7 @@ function updateProgress(loaded, total, stored = lastProgress.stored, failed = 0,
       `${pct}% — ${visibleStored.toLocaleString('pt-BR')} de ${total.toLocaleString('pt-BR')} imagens`;
   }
 
-  lastProgress = { loaded: visibleStored, stored: visibleStored, total, timestamp: Date.now() };
+  lastProgress = { stored: visibleStored, total };
   persistStoredProgress();
   resetStallDetection();
 }
@@ -781,7 +781,7 @@ async function startTilePreCache({ forceRetry = false, onlineTransition = false 
     showManualRetry('Libere espaço no navegador e tente novamente.', 'Verificar espaço e tentar novamente');
     return;
   }
-  if (lastProgress.total !== total || lastProgress.loaded === 0) {
+  if (lastProgress.total !== total || lastProgress.stored === 0) {
     document.getElementById('progress-text').textContent =
       `0% — 0 de ${total.toLocaleString('pt-BR')} imagens`;
   }
@@ -810,10 +810,7 @@ configureAvailableLayers();
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', event => {
     if (event.data.type === 'cache-progress') {
-      updateProgress(
-        event.data.loaded, event.data.total, event.data.stored,
-        event.data.failed, event.data.reused
-      );
+      updateProgress(event.data.total, event.data.stored, event.data.failed);
     }
     if (event.data.type === 'cache-complete') {
       terminalPackageBlocked = false;
@@ -822,18 +819,18 @@ if ('serviceWorker' in navigator) {
       if (stallTimer) clearTimeout(stallTimer);
       clearRecoveryTimer();
       hideManualRetry();
-      updateProgress(event.data.loaded, event.data.total, event.data.stored, 0, event.data.reused);
+      updateProgress(event.data.total, event.data.stored, 0);
       document.getElementById('progress-text').textContent = 'Mapa offline pronto ✓';
       document.getElementById('progress-fill').style.width = '100%';
       document.getElementById('progress-bar').setAttribute('aria-valuenow', '100');
       setTimeout(hideLoading, 1500);
     }
     if (event.data.type === 'cache-chunk-complete') {
-      updateProgress(event.data.loaded, event.data.total, event.data.stored, event.data.failed, event.data.reused);
+      updateProgress(event.data.total, event.data.stored, event.data.failed);
       scheduleRecovery(Date.now() + 100);
     }
     if (event.data.type === 'cache-recovery-wait') {
-      updateProgress(event.data.loaded, event.data.total, event.data.stored, event.data.failed);
+      updateProgress(event.data.total, event.data.stored, event.data.failed);
       hideManualRetry();
       offlineDownloadActive = true;
       document.getElementById('progress-text').textContent =
@@ -841,19 +838,19 @@ if ('serviceWorker' in navigator) {
       scheduleRecovery(event.data.nextRetryAt);
     }
     if (event.data.type === 'cache-recovery-exhausted') {
-      updateProgress(event.data.loaded, event.data.total, event.data.stored, event.data.failed);
+      updateProgress(event.data.total, event.data.stored, event.data.failed);
       showManualRetry(
         `${(event.data.failed || 0).toLocaleString('pt-BR')} imagens ainda precisam de recuperação.`
       );
     }
     if (event.data.type === 'storage-blocked') {
       storagePrepared = false;
-      updateProgress(event.data.loaded, event.data.total, event.data.stored, event.data.failed);
+      updateProgress(event.data.total, event.data.stored, event.data.failed);
       showManualRetry('O navegador não tem espaço suficiente para concluir o mapa.', 'Verificar espaço e tentar novamente');
     }
     if (event.data.type === 'package-integrity-blocked') {
       terminalPackageBlocked = true;
-      updateProgress(event.data.loaded, event.data.total, event.data.stored, event.data.failed);
+      updateProgress(event.data.total, event.data.stored, event.data.failed);
       offlineDownloadActive = false;
       if (stallTimer) clearTimeout(stallTimer);
       clearRecoveryTimer();
