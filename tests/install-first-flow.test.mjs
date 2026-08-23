@@ -216,9 +216,14 @@ assert.match(app, /function scheduleRecovery\(nextRetryAt\)/);
   assert.match(element('progress-text').textContent, /Arquivos do pacote não estão disponíveis/);
   assert.equal(element('loading-overlay').style.display, 'block', 'integrity failure cannot reveal the map');
 
-  dispatch({ type: 'cache-runtime-blocked', total: 10, stored: 0, failed: 0 });
+  dispatch({
+    type: 'cache-runtime-blocked', total: 10, stored: 0, failed: 0,
+    reason: 'InvalidStateError'
+  });
   assert.equal(element('resume-btn').style.display, 'inline-block');
   assert.equal(element('resume-btn').textContent, 'Continuar download');
+  assert.match(element('progress-text').textContent, /Código: InvalidStateError/,
+    'persistent Cache API failures expose a useful diagnostic code');
   element('resume-btn').onclick();
   await flush();
   assert.equal(posted.at(-1).forceRetry, true,

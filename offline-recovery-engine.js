@@ -14,6 +14,7 @@
   const MAX_ATTEMPTS = 4;
   const INTEGRITY_ATTEMPTS = 2;
   const PROBE_DELAYS = [5_000, 15_000, 45_000];
+  const CACHE_RUNTIME_RETRY_DELAYS = [250, 1_000];
 
   const now = () => self.__offlineRecoveryTest?.now?.() ?? Date.now();
   const random = () => self.__offlineRecoveryTest?.random?.() ?? Math.random();
@@ -680,15 +681,32 @@
       const descriptor = { packageId, ...options, cancelled: false, promise: null };
       const run = async () => {
         if (descriptor.cancelled) return;
-        try {
-          await precacheTiles(packageId, expectedCount, options);
-        } catch (error) {
-          await broadcast({
-            type: isQuotaError(error) ? 'storage-blocked' : 'cache-runtime-blocked',
-            packageId, loaded: 0, stored: 0,
-            failed: 0, total: expectedCount
-          });
+        let error;
+        for (let attempt = 0; attempt <= CACHE_RUNTIME_RETRY_DELAYS.length; attempt++) {
+          if (descriptor.cancelled) return;
+          try {
+            await precacheTiles(packageId, expectedCount, options);
+            return;
+          } catch (caught) {
+            error = caught;
+            if (isQuotaError(error)) break;
+            if (attempt === CACHE_RUNTIME_RETRY_DELAYS.length) break;
+
+            // A structural Cache API interruption can be transient in mobile
+            // browsers. Reconcile the already-written tiles before resuming so
+            // the visible counter and checkpoint remain truthful.
+            reconciledPackages.delete(packageId);
+            const delay = self.__offlineRecoveryTest
+              ? 0 : CACHE_RUNTIME_RETRY_DELAYS[attempt];
+            if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+          }
         }
+        await broadcast({
+          type: isQuotaError(error) ? 'storage-blocked' : 'cache-runtime-blocked',
+          packageId, loaded: 0, stored: 0,
+          failed: 0, total: expectedCount,
+          ...(isQuotaError(error) ? {} : { reason: error?.name || 'CacheRuntimeError' })
+        });
       };
       const queued = (predecessor || Promise.resolve()).then(run, run);
       descriptor.promise = queued.finally(() => {
