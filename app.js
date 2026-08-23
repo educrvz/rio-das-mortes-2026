@@ -1,10 +1,10 @@
 let map, userMarker, watchId = null, autoCenter = true;
 let routeLine, altRouteLine;
+let roadLayers = [];
+let roadsVisible = true;
 const TOTAL_KM = ROUTE_DATA.totalKm;
-const ALL_POIS = [
-  ...(ROUTE_DATA.pois || []),
-  ...(typeof SHEET_POIS === 'undefined' ? [] : SHEET_POIS)
-];
+const ALL_POIS = ROUTE_DATA.pois || [];
+const ALL_HOSPITALS = ROUTE_DATA.hospitals || [];
 let showAllKm = false;
 let kmLabelLayers = [];
 let kmDotLayers = [];
@@ -15,6 +15,8 @@ let speedSamples = [];
 let lastNoteEditorOpenedAt = 0;
 let lastProgress = { loaded: 0, total: 0, timestamp: 0 };
 let stallTimer = null;
+let storagePrepared = false;
+let offlineDownloadActive = false;
 
 const NOTES_STORAGE_KEY = 'rio-das-mortes-user-notes-v1';
 
@@ -23,6 +25,8 @@ const TRANSPARENT_TILE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEA
 const OfflineTileLayer = L.TileLayer.extend({
   createTile: function(coords, done) {
     const tile = document.createElement('img');
+    tile.alt = '';
+    tile.setAttribute('role', 'presentation');
     const z = String(coords.z);
     const x = String(coords.x);
     const y = coords.y;
@@ -47,13 +51,17 @@ const OfflineTileLayer = L.TileLayer.extend({
 function initMap() {
   const routeCoords = ROUTE_DATA.route.map(p => [p[1], p[0]]);
   const routeBounds = L.latLngBounds(routeCoords);
+  const roadCoords = (ROUTE_DATA.roads || []).flatMap(road =>
+    road.route.map(p => [p[1], p[0]])
+  );
+  const coverageBounds = L.latLngBounds([...routeCoords, ...roadCoords]);
 
   map = L.map('map', {
     zoomControl: true,
     attributionControl: false,
     maxZoom: 17,
     minZoom: 10,
-    maxBounds: routeBounds.pad(0.3),
+    maxBounds: coverageBounds.pad(0.08),
     maxBoundsViscosity: 0.8
   });
 
@@ -61,20 +69,22 @@ function initMap() {
     maxZoom: 17,
     minZoom: 10,
     tileSize: 256,
-    bounds: routeBounds.pad(0.15),
+    bounds: coverageBounds.pad(0.03),
     keepBuffer: 6,
     updateWhenZooming: false,
     updateWhenIdle: true
   }).addTo(map);
 
+  addRoads();
+
   routeLine = L.polyline(routeCoords,
-    { color: '#ff4444', weight: 3, opacity: 0.9 }
+    { color: '#f04a28', weight: 3.5, opacity: 0.95 }
   ).addTo(map);
 
   if (ROUTE_DATA.altRoute.length > 0) {
     altRouteLine = L.polyline(
       ROUTE_DATA.altRoute.map(p => [p[1], p[0]]),
-      { color: '#ffaa00', weight: 2, opacity: 0.7, dashArray: '8,6' }
+      { color: '#d89524', weight: 2, opacity: 0.75, dashArray: '8,6' }
     ).addTo(map);
   }
 
@@ -85,6 +95,28 @@ function initMap() {
 
   const mid = Math.floor(routeCoords.length / 2);
   map.setView(routeCoords[mid], 13);
+}
+
+function addRoads() {
+  roadLayers = (ROUTE_DATA.roads || []).map(road =>
+    L.polyline(
+      road.route.map(p => [p[1], p[0]]),
+      { color: '#d89524', weight: 2.5, opacity: 0.88, dashArray: '7,5' }
+    ).bindTooltip(`${escapeHtml(road.name)} · ${road.lengthKm.toFixed(1)} km`)
+      .on('click', () => showInfo(
+        `<h3>🛣️ ${escapeHtml(road.name)}</h3><p>${road.lengthKm.toFixed(1)} km</p>`
+      ))
+      .addTo(map)
+  );
+}
+
+function toggleRoads() {
+  roadsVisible = !roadsVisible;
+  document.getElementById('roads-toggle-btn').classList.toggle('active', roadsVisible);
+  roadLayers.forEach(layer => {
+    if (roadsVisible) layer.addTo(map);
+    else map.removeLayer(layer);
+  });
 }
 
 function addKmMarkers() {
@@ -130,14 +162,13 @@ function toggleKmDetail() {
 }
 
 const poiLayers = {};
-const poiVisible = { beach: false, exit: false, bridge: false, island: false, town: false, house: false, lagoon: false, health: false, airstrip: false };
+const poiVisible = { beach: false, exit: false, bridge: false, island: false, town: false, house: false, lagoon: false, airstrip: false };
 
 function addPOIs() {
-  const emojis = { beach: '🏖️', bridge: '🌉', exit: '🚗', island: '🏝️', town: '🏘️', house: '🏠', lagoon: '💧', health: '🏥', airstrip: '🛩️' };
+  const emojis = { beach: '🏖️', bridge: '🌉', exit: '🚗', island: '🏝️', town: '🏘️', house: '🏠', lagoon: '💧', airstrip: '🛩️' };
 
   ALL_POIS.forEach(poi => {
     const type = poi.type || 'beach';
-    if (type === 'hospital') return;
     const emoji = emojis[type] || '📍';
     const sz = [26, 26];
 
@@ -149,11 +180,13 @@ function addPOIs() {
         iconAnchor: [sz[0]/2, sz[1]/2]
       })
     }).on('click', () => {
-      let html = `<h3>${emoji} ${poi.name}</h3>`;
-      if (poi.info) html += `<p style="font-size:24px; margin:8px 0">${poi.info}</p>`;
-      if (poi.phone) html += `<p>📞 <a href="tel:${poi.phone.replace(/[^+\d]/g,'')}" style="color:#4af">${poi.phone}</a></p>`;
+      let html = `<h3>${emoji} ${escapeHtml(poi.name)}</h3>`;
+      if (Number.isFinite(poi.routeKm)) html += `<p>Km aproximado da rota: <strong>${poi.routeKm.toFixed(1)}</strong></p>`;
+      if (poi.info) html += `<p style="font-size:24px; margin:8px 0">${escapeHtml(poi.info)}</p>`;
+      if (poi.phone) html += `<p>📞 <a href="tel:${poi.phone.replace(/[^+\d]/g,'')}" style="color:#4af">${escapeHtml(poi.phone)}</a></p>`;
       if (!poi.phone) html += `<p>${poi.lat.toFixed(5)}, ${poi.lon.toFixed(5)}</p>`;
-      if (poi.sourceUrl) html += `<p><a href="${poi.sourceUrl}" target="_blank" rel="noopener" style="color:#4af">Fonte: ${poi.source}</a></p>`;
+      const sourceUrl = safeHttpsOrLocalUrl(poi.sourceUrl);
+      if (sourceUrl) html += `<p><a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener" style="color:#4af">Fonte: ${escapeHtml(poi.source)}${poi.sourceCell ? ` · ${escapeHtml(poi.sourceCell)}` : ''}</a></p>`;
       showInfo(html);
     });
 
@@ -164,9 +197,8 @@ function addPOIs() {
 }
 
 function configureAvailableLayers() {
-  const nonHospitalPOIs = ALL_POIS.filter(p => p.type !== 'hospital');
-  const hasHospitals = ALL_POIS.some(p => p.type === 'hospital');
-  if (nonHospitalPOIs.length === 0 && !hasHospitals) {
+  const hasHospitals = ALL_HOSPITALS.length > 0;
+  if (ALL_POIS.length === 0 && !hasHospitals) {
     document.getElementById('poi-toggle-btn').style.display = 'none';
   }
   if (!hasHospitals) {
@@ -191,12 +223,24 @@ function togglePOILayer(type) {
 }
 
 function togglePOIDrawer() {
-  document.getElementById('poi-drawer').classList.toggle('open');
-  document.getElementById('poi-toggle-btn').classList.toggle('active');
+  const drawer = document.getElementById('poi-drawer');
+  const button = document.getElementById('poi-toggle-btn');
+  const isOpen = drawer.classList.toggle('open');
+  button.classList.toggle('active', isOpen);
+  button.setAttribute('aria-expanded', String(isOpen));
+}
+
+function showImageryStatus() {
+  showInfo(
+    '<h3>Imagens offline incluídas</h3>' +
+    '<p>O pacote cobre o corredor do rio até zoom 17 e as cinco estradas logísticas até zoom 16.</p>' +
+    '<p>Fonte: imagens coloridas de 2 m do satélite CBERS-4A/WPM, publicadas pelo INPE. Cenas selecionadas entre agosto de 2025 e agosto de 2026.</p>' +
+    '<p><a href="https://data.inpe.br/bdc/stac/v1/collections/CB4A-WPM-PCA-FUSED-1" target="_blank" rel="noopener">Coleção oficial do INPE</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">Licença CC BY 4.0</a></p>'
+  );
 }
 
 function showHospitals() {
-  const hospitals = ALL_POIS.filter(p => p.type === 'hospital');
+  const hospitals = [...ALL_HOSPITALS];
   let userLat = null, userLon = null;
   if (userMarker) {
     const ll = userMarker.getLatLng();
@@ -205,6 +249,7 @@ function showHospitals() {
   }
 
   let html = '<h3>🐍 Referências para acidentes com animais peçonhentos</h3>';
+  html += '<p style="color:#ffcf66; font-size:12px">A relação oficial não confirma estoque em tempo real. Em uma emergência, ligue 192 ou 193.</p>';
   hospitals.sort((a, b) => {
     if (!userLat) return 0;
     return haversine(userLat, userLon, a.lat, a.lon) - haversine(userLat, userLon, b.lat, b.lon);
@@ -217,12 +262,27 @@ function showHospitals() {
       dist = `<span style="color:#4af; font-weight:700">${km.toFixed(0)} km</span> — `;
     }
     html += `<div style="margin:12px 0; padding:10px; background:rgba(255,255,255,0.08); border-radius:8px">`;
-    html += `<p style="font-weight:700; font-size:15px">${h.name}</p>`;
-    html += `<p style="font-size:15px; margin:4px 0">${h.info}</p>`;
-    html += `<p>${dist}📞 <a href="tel:${h.phone.replace(/[^+\d]/g,'')}" style="color:#4af">${h.phone}</a></p>`;
-    if (h.sourceDate) html += `<p style="color:#aaa; font-size:11px">Fonte oficial: ${h.sourceDate.split('-').reverse().join('/')} · estoque não confirmado em tempo real</p>`;
+    html += `<p style="font-weight:700; font-size:15px">${escapeHtml(h.name)}</p>`;
+    html += `<p>${escapeHtml(h.city)}/${escapeHtml(h.state)} · CNES ${escapeHtml(h.cnes)}</p>`;
+    html += `<p>${escapeHtml(h.address)}</p>`;
+    html += `<p style="font-size:13px; margin:5px 0">${h.antivenoms.map(escapeHtml).join(' · ')}</p>`;
+    html += `<p style="font-size:12px; color:#bbb">${escapeHtml(h.routeContext)}</p>`;
+    (h.phones || []).forEach(phone => {
+      html += `<p>${dist}📞 <a href="tel:${phone.replace(/[^+\d]/g,'')}" style="color:#4af">${escapeHtml(phone)}</a></p>`;
+      dist = '';
+    });
+    html += `<p style="color:#aaa; font-size:11px">Fonte oficial: ${ROUTE_DATA.emergencySource.sourceDate.split('-').reverse().join('/')} · verificado em ${ROUTE_DATA.emergencySource.checkedAt.split('-').reverse().join('/')}</p>`;
     html += `</div>`;
   });
+
+  html += '<p style="margin-top:10px">☎️ <a href="tel:08007226001" style="color:#4af">Disque-Intoxicação: 0800 722 6001</a></p>';
+  const officialUrl = safeHttpsOrLocalUrl(ROUTE_DATA.emergencySource.officialUrl);
+  const sorojaUrl = safeHttpsOrLocalUrl(ROUTE_DATA.emergencySource.sorojaUrl);
+  html += `<p><a href="${escapeHtml(officialUrl)}" target="_blank" rel="noopener" style="color:#4af">Fonte: Ministério da Saúde</a> · <a href="${escapeHtml(sorojaUrl)}" target="_blank" rel="noopener" style="color:#4af">SoroJá</a></p>`;
+
+  if (userLat) {
+    html += '<p style="color:#ffcf66; font-size:12px">As distâncias mostradas são em linha reta; não representam trajeto por estrada nem tempo de viagem.</p>';
+  }
 
   if (!userLat) {
     html += '<p style="color:#888; font-size:12px; margin-top:8px">Ative o GPS para ver distâncias</p>';
@@ -252,6 +312,16 @@ function escapeHtml(value) {
   return String(value).replace(/[&<>'"]/g, char => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
   })[char]);
+}
+
+function safeHttpsOrLocalUrl(value) {
+  try {
+    const url = new URL(String(value), window.location.href);
+    if (url.protocol !== 'https:' && url.origin !== window.location.origin) return '';
+    return url.href;
+  } catch (error) {
+    return '';
+  }
 }
 
 function loadSavedNotes() {
@@ -465,7 +535,9 @@ function onPosition(pos) {
   if (!userMarker) {
     userMarker = L.marker([lat, lon], {
       icon: L.divIcon({ className: 'user-marker', iconSize: [20, 20], iconAnchor: [10, 10] }),
-      zIndexOffset: 1000
+      zIndexOffset: 1000,
+      interactive: false,
+      keyboard: false
     }).addTo(map);
   } else {
     userMarker.setLatLng([lat, lon]);
@@ -509,10 +581,14 @@ function closeInfo() {
   document.getElementById('info-panel').style.display = 'none';
 }
 
-function updateProgress(loaded, total, cached) {
+function updateProgress(loaded, total, stored, failed = 0, reused = 0) {
   const pct = Math.round((loaded / total) * 100);
   document.getElementById('progress-fill').style.width = pct + '%';
-  if (cached > 0 && cached === loaded) {
+  document.getElementById('progress-bar').setAttribute('aria-valuenow', String(pct));
+  if (failed > 0) {
+    document.getElementById('progress-text').textContent =
+      `${pct}% — ${failed.toLocaleString('pt-BR')} imagens precisam ser repetidas`;
+  } else if (reused > 0 && reused === loaded) {
     document.getElementById('progress-text').textContent = `${pct}% — Já baixado!`;
   } else {
     document.getElementById('progress-text').textContent = `${pct}% — ${loaded.toLocaleString()} de ${total.toLocaleString()} imagens`;
@@ -531,7 +607,7 @@ function resetStallDetection() {
     if (pct < 100) {
       document.getElementById('resume-btn').style.display = 'inline-block';
     }
-  }, 8000);
+  }, 20000);
 }
 
 function resumeDownload() {
@@ -548,36 +624,93 @@ function hideLoading() {
   setTimeout(() => overlay.style.display = 'none', 500);
 }
 
-function startTilePreCache() {
+async function prepareOfflineStorage(requiredBytes) {
+  if (storagePrepared) return true;
+  if (navigator.storage?.persist) {
+    try { await navigator.storage.persist(); } catch (error) {}
+  }
+  if (navigator.storage?.estimate && requiredBytes > 0) {
+    try {
+      const estimate = await navigator.storage.estimate();
+      const available = (estimate.quota || 0) - (estimate.usage || 0);
+      if (estimate.quota && available < requiredBytes * 1.25) {
+        const neededMb = Math.ceil((requiredBytes * 1.25 - available) / 1024 / 1024);
+        document.getElementById('progress-text').textContent =
+          `Faltam aproximadamente ${neededMb.toLocaleString('pt-BR')} MB livres no navegador.`;
+        document.getElementById('resume-btn').style.display = 'inline-block';
+        return false;
+      }
+    } catch (error) {}
+  }
+  storagePrepared = true;
+  return true;
+}
+
+async function startTilePreCache(attempt = 0) {
   if (!navigator.serviceWorker.controller) {
-    setTimeout(startTilePreCache, 200);
+    document.getElementById('progress-text').textContent = 'Ativando o modo offline…';
     return;
   }
 
-  const tiles = getTileList();
-  document.getElementById('progress-text').textContent = `0% — 0 de ${tiles.length.toLocaleString('pt-BR')} imagens`;
+  const total = typeof TILE_PACKAGE_META !== 'undefined' ? TILE_PACKAGE_META.count : 0;
+  if (total === 0) {
+    document.getElementById('download-size').textContent = 'App base pronta; imagens offline ainda não incluídas.';
+    document.getElementById('progress-text').textContent = 'Rota, estradas e POIs disponíveis';
+    document.getElementById('progress-fill').style.width = '100%';
+    setTimeout(hideLoading, 1800);
+    return;
+  }
+
+  if (typeof TILE_PACKAGE_META !== 'undefined' && TILE_PACKAGE_META.bytes) {
+    const sizeMb = Math.round(TILE_PACKAGE_META.bytes / 1024 / 1024);
+    document.getElementById('download-size').textContent =
+      `Preparando ${total.toLocaleString('pt-BR')} imagens offline (${sizeMb} MB).`;
+  } else {
+    document.getElementById('download-size').textContent =
+      `Preparando ${total.toLocaleString('pt-BR')} imagens offline.`;
+  }
+  const requiredBytes = typeof TILE_PACKAGE_META !== 'undefined' ? TILE_PACKAGE_META.bytes : 0;
+  if (!(await prepareOfflineStorage(requiredBytes))) return;
+  document.getElementById('progress-text').textContent = `0% — 0 de ${total.toLocaleString('pt-BR')} imagens`;
   resetStallDetection();
+  offlineDownloadActive = true;
 
   navigator.serviceWorker.controller.postMessage({
     type: 'precache-tiles',
-    tiles: tiles
+    packageId: typeof TILE_PACKAGE_META !== 'undefined' ? TILE_PACKAGE_META.id : 'current',
+    expectedCount: total
   });
 }
 
-navigator.serviceWorker.addEventListener('message', event => {
-  if (event.data.type === 'cache-progress') {
-    updateProgress(event.data.loaded, event.data.total, event.data.cached);
-  }
-  if (event.data.type === 'cache-complete') {
-    if (stallTimer) clearTimeout(stallTimer);
-    document.getElementById('resume-btn').style.display = 'none';
-    document.getElementById('progress-text').textContent = 'Mapa pronto! Funciona offline ✓';
-    document.getElementById('progress-fill').style.width = '100%';
-    setTimeout(hideLoading, 1500);
-  }
+window.addEventListener('beforeunload', event => {
+  if (!offlineDownloadActive) return;
+  event.preventDefault();
+  event.returnValue = '';
 });
 
 if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', event => {
+    if (event.data.type === 'cache-progress') {
+      updateProgress(event.data.loaded, event.data.total, event.data.stored, event.data.failed, event.data.reused);
+    }
+    if (event.data.type === 'cache-complete') {
+      offlineDownloadActive = false;
+      if (stallTimer) clearTimeout(stallTimer);
+      document.getElementById('resume-btn').style.display = 'none';
+      document.getElementById('progress-text').textContent = 'Mapa offline pronto ✓';
+      document.getElementById('progress-fill').style.width = '100%';
+      document.getElementById('progress-bar').setAttribute('aria-valuenow', '100');
+      setTimeout(hideLoading, 1500);
+    }
+    if (event.data.type === 'cache-incomplete') {
+      offlineDownloadActive = false;
+      if (stallTimer) clearTimeout(stallTimer);
+      const failed = event.data.failed || (event.data.total - event.data.stored);
+      document.getElementById('progress-text').textContent =
+        `${failed.toLocaleString('pt-BR')} imagens não baixaram. Toque para repetir.`;
+      document.getElementById('resume-btn').style.display = 'inline-block';
+    }
+  });
   navigator.serviceWorker.register('sw.js').then(reg => {
     if (navigator.serviceWorker.controller) {
       startTilePreCache();
@@ -595,6 +728,9 @@ if ('serviceWorker' in navigator) {
 
 initMap();
 configureAvailableLayers();
+requestAnimationFrame(() => {
+  document.getElementById('loading-overlay').classList.add('background-download');
+});
 
 map.on('movestart', () => {
   if (watchId !== null) {

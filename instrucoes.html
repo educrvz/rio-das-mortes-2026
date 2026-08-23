@@ -3,184 +3,126 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rio das Mortes 2026 — Instalar Mapa</title>
+<meta name="theme-color" content="#171916">
+<title>Rio das Mortes 2026 — Preparar o celular</title>
+<link rel="icon" href="rio-mortes-icon-192.png" type="image/png">
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  font-family: -apple-system, system-ui, sans-serif;
-  background: #1a1a2e; color: #fff;
-  padding: 20px; padding-bottom: 60px;
-  line-height: 1.6;
-}
-.container { max-width: 500px; margin: 0 auto; }
-h1 { font-size: 32px; text-align: center; margin: 20px 0 8px; }
-.subtitle { text-align: center; color: #aaa; font-size: 18px; margin-bottom: 30px; }
-.step {
-  background: #252545; border-radius: 16px; padding: 20px;
-  margin-bottom: 16px; display: flex; gap: 16px; align-items: flex-start;
-}
-.step-num {
-  background: #4af; color: #000; font-weight: 800; font-size: 22px;
-  min-width: 44px; height: 44px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-}
-.step-text { flex: 1; }
-.step-text h3 { font-size: 20px; margin-bottom: 4px; }
-.step-text p { font-size: 16px; color: #ccc; }
-.highlight { color: #4af; font-weight: 600; }
-.warning {
-  background: #3a2a10; border: 1px solid #f90; border-radius: 12px;
-  padding: 16px; margin: 20px 0; font-size: 16px;
-}
-.warning strong { color: #f90; }
-.btn-open {
-  display: block; width: 100%; padding: 18px; margin: 30px 0;
-  background: #4af; color: #000; font-size: 22px; font-weight: 700;
-  border: none; border-radius: 14px; cursor: pointer; text-align: center;
-  text-decoration: none;
-}
-.btn-open:active { background: #38d; }
-.os-section { display: none; }
-.os-section.active { display: block; }
-.tab-bar {
-  display: flex; gap: 8px; margin-bottom: 24px; justify-content: center;
-}
-.tab-btn {
-  padding: 12px 28px; border-radius: 10px; border: 2px solid #4af;
-  background: transparent; color: #4af; font-size: 18px; font-weight: 600;
-  cursor: pointer;
-}
-.tab-btn.active { background: #4af; color: #000; }
-.footer { text-align: center; color: #666; font-size: 14px; margin-top: 30px; }
-.emoji { font-size: 28px; }
+:root { --ink:#171916; --raised:#242722; --paper:#f3e8ce; --muted:#b8b49f; --river:#36c0c5; --route:#f04a28; --ochre:#d89524; --warning:#ffd36a; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { min-height:100vh; font-family:"Avenir Next",Avenir,"Trebuchet MS",sans-serif; background:linear-gradient(150deg,rgba(216,149,36,.12),transparent 35%),repeating-radial-gradient(ellipse at 85% 10%,transparent 0 34px,rgba(243,232,206,.035) 35px 36px),var(--ink); color:var(--paper); padding:24px 18px 64px; line-height:1.5; }
+button,a { font:inherit; }
+button:focus-visible,a:focus-visible { outline:3px solid var(--warning); outline-offset:3px; }
+.container { max-width:620px; margin:0 auto; }
+.hero { display:grid; grid-template-columns:92px 1fr; gap:18px; align-items:center; padding:12px 0 24px; border-bottom:1px solid rgba(243,232,206,.14); }
+.hero img { width:92px; height:92px; border-radius:22px; box-shadow:0 14px 34px rgba(0,0,0,.4); }
+.kicker { color:var(--ochre); font-size:10px; font-weight:900; letter-spacing:.2em; }
+h1 { font:700 clamp(30px,8vw,46px)/.95 Georgia,"Times New Roman",serif; letter-spacing:-.04em; margin:5px 0 8px; }
+.subtitle { color:var(--muted); font-size:15px; }
+.stats { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; margin:24px 0; background:rgba(243,232,206,.12); border:1px solid rgba(243,232,206,.12); }
+.stat { background:var(--raised); padding:13px 8px; text-align:center; }
+.stat strong { display:block; color:var(--paper); font-size:20px; }
+.stat span { color:#8f9386; font-size:9px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
+.status { border-left:4px solid var(--ochre); background:rgba(216,149,36,.1); padding:15px 16px; margin:20px 0; }
+.status strong { color:var(--warning); }
+.status p + p { margin-top:8px; }
+.btn-open { display:block; width:100%; padding:17px; margin:24px 0; background:var(--route); color:var(--ink); font-size:17px; font-weight:900; letter-spacing:.06em; border:0; border-radius:5px; cursor:pointer; text-align:center; text-decoration:none; box-shadow:0 10px 30px rgba(240,74,40,.2); }
+.section-title { font:700 25px/1.1 Georgia,"Times New Roman",serif; margin:34px 0 14px; }
+.field-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.field-card { background:var(--raised); padding:15px; border-top:2px solid var(--river); }
+.field-card strong { display:block; margin-bottom:4px; }
+.field-card p { color:var(--muted); font-size:13px; }
+.tab-bar { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; }
+.tab-btn { min-height:48px; border:1px solid var(--ochre); background:transparent; color:var(--ochre); font-weight:900; cursor:pointer; border-radius:4px; }
+.tab-btn.active { background:var(--ochre); color:var(--ink); }
+.os-section { display:none; }
+.os-section.active { display:block; }
+.step { background:var(--raised); margin-bottom:9px; padding:16px; display:grid; grid-template-columns:36px 1fr; gap:13px; align-items:start; border:1px solid rgba(243,232,206,.08); }
+.step-num { width:34px; height:34px; display:grid; place-items:center; background:var(--river); color:var(--ink); font-weight:900; border-radius:50%; }
+.step h3 { font-size:16px; margin-bottom:3px; }
+.step p { color:#c8c4b4; font-size:14px; }
+.highlight { color:var(--river); font-weight:800; }
+.test { margin-top:22px; padding:16px; border:1px solid rgba(54,192,197,.45); background:rgba(54,192,197,.07); }
+.test strong { color:var(--river); }
+.footer { text-align:center; color:#777c70; font-size:12px; margin-top:32px; letter-spacing:.08em; }
+@media (max-width:460px) { .stats { grid-template-columns:1fr 1fr; } .field-grid { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
-<div class="container">
-  <h1>Rio das Mortes 2026</h1>
-  <p class="subtitle">Mapa Offline com GPS</p>
-
-  <div class="warning">
-    <strong>IMPORTANTE:</strong> Instale o mapa <strong>ANTES</strong> da viagem, conectado no Wi-Fi. Ao abrir o mapa, ele vai baixar automaticamente 9.892 imagens de satélite (~163 MB). <strong>Espere a barra chegar em 100%!</strong>
-  </div>
-
-  <a class="btn-open" href="index.html" id="btn-open-map">ABRIR O MAPA</a>
-
-  <div class="step">
-    <div class="step-num">+</div>
-    <div class="step-text">
-      <h3>Novos recursos no rio</h3>
-      <p><span class="highlight">📝 Anotações:</span> toque em 📝 para ativar, toque no mapa para salvar pontos e toque em 📝 novamente quando terminar. Pressionar ou arrastar o mapa com 📝 desligado não cria anotações.</p>
-      <p><span class="highlight">Velocidade:</span> aparece no topo quando o GPS está ligado.</p>
+<main class="container">
+  <header class="hero">
+    <img src="rio-mortes-icon-192.png" alt="Ícone do Rio das Mortes">
+    <div>
+      <p class="kicker">GUIA DE CAMPO · 2026</p>
+      <h1>Rio das Mortes</h1>
+      <p class="subtitle">Vila Berrante → Novo Santo Antônio</p>
     </div>
+  </header>
+
+  <section class="stats" aria-label="Conteúdo do aplicativo">
+    <div class="stat"><strong>91,7</strong><span>km de rio</span></div>
+    <div class="stat"><strong>55</strong><span>pontos</span></div>
+    <div class="stat"><strong>5</strong><span>estradas</span></div>
+    <div class="stat"><strong>3</strong><span>referências</span></div>
+  </section>
+
+  <div class="status">
+    <p><strong>O app está pronto para instalação.</strong></p>
+    <p>Rota, quilômetros, estradas, POIs, anotações, emergência e imagens de satélite ficam disponíveis offline depois da preparação inicial.</p>
+    <p>As imagens de 2 m do INPE/CBERS-4A cobrem o rio até zoom 17 e as cinco estradas até zoom 16.</p>
+    <p id="package-size">O tamanho exato do pacote será mostrado ao abrir esta versão.</p>
   </div>
 
-  <p style="text-align:center; color:#aaa; margin-bottom:20px; font-size:18px;">
-    Depois de abrir, siga os passos abaixo para salvar no celular:
-  </p>
+  <a class="btn-open" href="index.html">ABRIR O MAPA</a>
 
+  <h2 class="section-title">O que levará no celular</h2>
+  <section class="field-grid">
+    <div class="field-card"><strong>GPS e progresso</strong><p>Posição, velocidade e quilômetros restantes durante a descida.</p></div>
+    <div class="field-card"><strong>Camadas por emoji</strong><p>Praias, acessos, ilhas, povoados, casas, lagos e pistas.</p></div>
+    <div class="field-card"><strong>Logística</strong><p>Cinco estradas de acesso, visíveis ou ocultas com um toque.</p></div>
+    <div class="field-card"><strong>Notas próprias</strong><p>Marque um ponto no mapa, salve no aparelho e exporte depois.</p></div>
+    <div class="field-card"><strong>Emergência 🐍</strong><p>Três referências oficiais próximas ao rio ou às rotas terrestres.</p></div>
+    <div class="field-card"><strong>Quilometragem</strong><p>Marcos principais ou detalhamento de quilômetro em quilômetro.</p></div>
+  </section>
+
+  <h2 class="section-title">Instalar no celular</h2>
   <div class="tab-bar">
-    <button class="tab-btn" id="tab-android" onclick="showOS('android')">Android</button>
-    <button class="tab-btn" id="tab-iphone" onclick="showOS('iphone')">iPhone</button>
+    <button class="tab-btn" id="tab-android" type="button" onclick="showOS('android')">Android</button>
+    <button class="tab-btn" id="tab-iphone" type="button" onclick="showOS('iphone')">iPhone</button>
   </div>
 
-  <!-- ANDROID -->
-  <div id="os-android" class="os-section">
-    <div class="step">
-      <div class="step-num">1</div>
-      <div class="step-text">
-        <h3>Abra o mapa</h3>
-        <p>Clique no botão azul <span class="highlight">"ABRIR O MAPA"</span> acima.</p>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">2</div>
-      <div class="step-text">
-        <h3>Aguarde o download</h3>
-        <p>Vai aparecer uma barra de progresso. <span class="highlight">Espere até chegar em 100%</span>. Pode demorar alguns minutos no Wi-Fi.</p>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">3</div>
-      <div class="step-text">
-        <h3>Salvar na tela inicial</h3>
-        <p>Toque nos <span class="highlight">3 pontinhos</span> <span class="emoji">&#8942;</span> no canto superior direito do Chrome.</p>
-        <p>Depois toque em <span class="highlight">"Adicionar à tela inicial"</span> ou <span class="highlight">"Instalar app"</span>.</p>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">4</div>
-      <div class="step-text">
-        <h3>Pronto!</h3>
-        <p>Um ícone vai aparecer na sua tela. <span class="highlight">Funciona sem internet!</span></p>
-        <p>No rio, abra o app e toque no botão de <span class="highlight">GPS</span> (canto inferior direito).</p>
-      </div>
-    </div>
-  </div>
+  <section id="os-android" class="os-section">
+    <div class="step"><div class="step-num">1</div><div><h3>Abra no Chrome, com Wi-Fi</h3><p>Toque em <span class="highlight">ABRIR O MAPA</span> e mantenha a tela aberta durante o download.</p></div></div>
+    <div class="step"><div class="step-num">2</div><div><h3>Espere chegar a 100%</h3><p>O mapa avisa quando todas as imagens offline estiverem salvas no aparelho.</p></div></div>
+    <div class="step"><div class="step-num">3</div><div><h3>Instale</h3><p>No menu de três pontos, escolha <span class="highlight">Instalar app</span> ou <span class="highlight">Adicionar à tela inicial</span>.</p></div></div>
+    <div class="step"><div class="step-num">4</div><div><h3>Autorize o GPS</h3><p>Abra pelo novo ícone e permita localização precisa quando o aparelho solicitar.</p></div></div>
+  </section>
 
-  <!-- IPHONE -->
-  <div id="os-iphone" class="os-section">
-    <div class="step">
-      <div class="step-num">1</div>
-      <div class="step-text">
-        <h3>Use o Safari</h3>
-        <p><span class="highlight">IMPORTANTE:</span> Abra este link no <span class="highlight">Safari</span> (não no Chrome). No iPhone, só o Safari permite salvar na tela.</p>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">2</div>
-      <div class="step-text">
-        <h3>Abra o mapa</h3>
-        <p>Clique no botão azul <span class="highlight">"ABRIR O MAPA"</span> acima.</p>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">3</div>
-      <div class="step-text">
-        <h3>Aguarde o download</h3>
-        <p>Vai aparecer uma barra de progresso. <span class="highlight">Espere até chegar em 100%</span>. Pode demorar alguns minutos no Wi-Fi.</p>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">4</div>
-      <div class="step-text">
-        <h3>Salvar na tela inicial</h3>
-        <p>Toque no botão de <span class="highlight">compartilhar</span> <span class="emoji">&#9757;</span> (quadrado com seta para cima, na parte de baixo da tela).</p>
-        <p>Role para baixo e toque em <span class="highlight">"Adicionar à Tela de Início"</span>.</p>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">5</div>
-      <div class="step-text">
-        <h3>Pronto!</h3>
-        <p>Um ícone vai aparecer na sua tela. <span class="highlight">Funciona sem internet!</span></p>
-        <p>No rio, abra o app e toque no botão de <span class="highlight">GPS</span> (canto inferior direito).</p>
-      </div>
-    </div>
-  </div>
+  <section id="os-iphone" class="os-section">
+    <div class="step"><div class="step-num">1</div><div><h3>Abra no Safari, com Wi-Fi</h3><p>No iPhone, use o <span class="highlight">Safari</span>, toque em ABRIR O MAPA e mantenha a tela aberta.</p></div></div>
+    <div class="step"><div class="step-num">2</div><div><h3>Espere chegar a 100%</h3><p>O mapa avisa quando todas as imagens offline estiverem salvas no aparelho.</p></div></div>
+    <div class="step"><div class="step-num">3</div><div><h3>Adicione à Tela de Início</h3><p>Toque em Compartilhar, role a lista e escolha <span class="highlight">Adicionar à Tela de Início</span>.</p></div></div>
+    <div class="step"><div class="step-num">4</div><div><h3>Autorize o GPS</h3><p>Abra pelo novo ícone e permita localização precisa quando o aparelho solicitar.</p></div></div>
+  </section>
 
-  <div class="warning">
-    <strong>DICA:</strong> Depois de instalar, <span class="highlight">desligue o Wi-Fi</span> e abra o app para testar se funciona offline. Se funcionar, está tudo certo!
-  </div>
+  <div class="test"><strong>Teste antes da viagem:</strong> depois de chegar a 100%, ative o modo avião e confirme que imagens, rota, estradas, POIs, notas e emergência continuam disponíveis.</div>
+  <p class="footer">Imagens © INPE/CBERS-4A WPM · CC BY 4.0</p>
+  <p class="footer">RIO DAS MORTES · GUIA DE CAMPO 2026</p>
+</main>
 
-  <p class="footer">Rio das Mortes 2026 — Boa viagem!</p>
-</div>
-
+<script src="tile-manifest.js"></script>
 <script>
+if (typeof TILE_PACKAGE_META !== 'undefined') {
+  const sizeMb = Math.round(TILE_PACKAGE_META.bytes / 1024 / 1024);
+  document.getElementById('package-size').textContent =
+    `${TILE_PACKAGE_META.count.toLocaleString('pt-BR')} imagens · ${sizeMb.toLocaleString('pt-BR')} MB de download inicial.`;
+}
 function showOS(os) {
   document.querySelectorAll('.os-section').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
   document.getElementById('os-' + os).classList.add('active');
   document.getElementById('tab-' + os).classList.add('active');
 }
-
-// Auto-detect OS
-const ua = navigator.userAgent || '';
-if (/iPhone|iPad|iPod/i.test(ua)) {
-  showOS('iphone');
-} else {
-  showOS('android');
-}
+showOS(/iPhone|iPad|iPod/i.test(navigator.userAgent || '') ? 'iphone' : 'android');
 </script>
 </body>
 </html>

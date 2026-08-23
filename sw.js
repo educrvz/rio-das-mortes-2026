@@ -1,17 +1,26 @@
-const CACHE_NAME = 'rio-das-mortes-v1';
+importScripts('./tile-manifest.js');
+
+const CACHE_NAME = 'rio-das-mortes-v10';
+const CACHE_PREFIX = 'rio-das-mortes-';
 
 const APP_SHELL = [
   './',
   './index.html',
+  './instrucoes.html',
   './app.js',
-  './style.css',
+  './style.css?v=10',
   './route-data.js',
   './tile-manifest.js',
   './manifest.json',
-  './icon-192.png',
-  './icon-512.png',
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+  './rio-mortes-icon-192.png',
+  './rio-mortes-icon-512.png',
+  './vendor/leaflet/leaflet.css',
+  './vendor/leaflet/leaflet.js',
+  './vendor/leaflet/images/layers.png',
+  './vendor/leaflet/images/layers-2x.png',
+  './vendor/leaflet/images/marker-icon.png',
+  './vendor/leaflet/images/marker-icon-2x.png',
+  './vendor/leaflet/images/marker-shadow.png'
 ];
 
 self.addEventListener('install', event => {
@@ -24,7 +33,11 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+      Promise.all(
+        keys
+          .filter(key => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
+          .map(key => caches.delete(key))
+      )
     ).then(() => self.clients.claim())
   );
 });
@@ -32,7 +45,7 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  if (url.pathname.includes('/tiles/') || event.request.url.includes('unpkg.com/leaflet')) {
+  if (url.pathname.includes('/tiles/')) {
     event.respondWith(
       caches.match(event.request).then(cached => {
         if (cached) return cached;
@@ -53,19 +66,100 @@ self.addEventListener('fetch', event => {
   );
 });
 
+let activePrecache = null;
+let activePackageId = null;
+
+async function broadcast(message) {
+  const currentClients = await self.clients.matchAll();
+  currentClients.forEach(client => client.postMessage(message));
+}
+
 self.addEventListener('message', event => {
   if (event.data.type === 'precache-tiles') {
-    precacheTiles(event.data.tiles);
+    if (activePrecache && activePackageId === event.data.packageId) {
+      event.waitUntil(activePrecache);
+      return;
+    }
+    const run = () => precacheTiles(event.data.packageId, event.data.expectedCount);
+    const queued = (activePrecache || Promise.resolve()).then(run, run);
+    const tracked = queued.finally(() => {
+      if (activePrecache === tracked) {
+        activePrecache = null;
+        activePackageId = null;
+      }
+    });
+    activePrecache = tracked;
+    activePackageId = event.data.packageId;
+    event.waitUntil(tracked);
   }
 });
 
-async function precacheTiles(tileUrls) {
+async function fetchWithTimeout(url, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function precacheTiles(packageId, expectedCount) {
   const cache = await caches.open(CACHE_NAME);
-  const clients = await self.clients.matchAll();
-  let loaded = 0;
-  let cached = 0;
+  const tileUrls = getTileList();
   const total = tileUrls.length;
-  const BATCH = 30;
+  if (total !== expectedCount) {
+    await broadcast({
+      type: 'cache-incomplete', loaded: 0, stored: 0, failed: total, total
+    });
+    return;
+  }
+  const markerUrl = new URL(
+    `offline-package-${encodeURIComponent(packageId || 'current')}.ready`,
+    self.registration.scope
+  ).href;
+  const ready = await cache.match(markerUrl);
+  if (ready) {
+    const keys = await cache.keys();
+    const storedTileUrls = new Set(
+      keys
+        .map(request => request.url)
+        .filter(url => new URL(url).pathname.includes('/tiles/'))
+    );
+    const requiredTileUrls = tileUrls.map(url => new URL(url, self.registration.scope).href);
+    const exactPackage = storedTileUrls.size === total
+      && requiredTileUrls.every(url => storedTileUrls.has(url));
+    if (exactPackage) {
+      await broadcast({
+        type: 'cache-complete', loaded: total, stored: total, reused: total, total
+      });
+      return;
+    }
+    await cache.delete(markerUrl);
+    const required = new Set(requiredTileUrls);
+    await Promise.all(
+      keys
+        .filter(request => new URL(request.url).pathname.includes('/tiles/') && !required.has(request.url))
+        .map(request => cache.delete(request))
+    );
+  } else {
+    const keys = await cache.keys();
+    const obsoletePackage = keys.some(request =>
+      new URL(request.url).pathname.includes('/offline-package-')
+    );
+    if (obsoletePackage) {
+      await Promise.all(keys.filter(request => {
+        const pathname = new URL(request.url).pathname;
+        return pathname.includes('/tiles/') || pathname.includes('/offline-package-');
+      }).map(request => cache.delete(request)));
+    }
+  }
+
+  let loaded = 0;
+  let stored = 0;
+  let reused = 0;
+  let failed = 0;
+  const BATCH = 20;
 
   for (let i = 0; i < total; i += BATCH) {
     const batch = tileUrls.slice(i, i + BATCH);
@@ -73,17 +167,31 @@ async function precacheTiles(tileUrls) {
       batch.map(async url => {
         const existing = await cache.match(url);
         if (existing) {
-          cached++;
+          stored++;
+          reused++;
         } else {
           try {
-            const resp = await fetch(url);
-            if (resp.ok) await cache.put(url, resp);
-          } catch (e) {}
+            const resp = await fetchWithTimeout(url);
+            if (resp.ok) {
+              await cache.put(url, resp);
+              stored++;
+            } else {
+              failed++;
+            }
+          } catch (e) {
+            failed++;
+          }
         }
         loaded++;
       })
     );
-    clients.forEach(c => c.postMessage({ type: 'cache-progress', loaded, cached, total }));
+    await broadcast({ type: 'cache-progress', loaded, stored, reused, failed, total });
   }
-  clients.forEach(c => c.postMessage({ type: 'cache-complete', loaded, cached, total }));
+
+  if (failed === 0 && stored === total) {
+    await cache.put(markerUrl, new Response('ready', { headers: { 'Content-Type': 'text/plain' } }));
+    await broadcast({ type: 'cache-complete', loaded, stored, reused, failed, total });
+  } else {
+    await broadcast({ type: 'cache-incomplete', loaded, stored, reused, failed, total });
+  }
 }

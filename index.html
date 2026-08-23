@@ -2,29 +2,33 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#1a1a2e">
+<meta name="apple-mobile-web-app-title" content="Rio Mortes">
+<meta name="theme-color" content="#171916">
 <title>Rio das Mortes 2026</title>
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon-192.png?v=2">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="style.css">
+<link rel="icon" href="rio-mortes-icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="rio-mortes-icon-192.png">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
+<main id="app-shell" aria-label="Guia de campo do Rio das Mortes">
 <div id="map"></div>
 
-<div id="loading-overlay">
+<div id="loading-overlay" role="status" aria-live="polite" aria-label="Preparação do mapa offline">
   <div class="loading-content">
-    <img src="icon-192.png?v=2" alt="Rio das Mortes 2026" class="loading-logo">
-    <h1>Rio das Mortes 2026</h1>
+    <img class="loading-logo" src="rio-mortes-icon-192.png" alt="">
+    <p class="loading-kicker">EXPEDIÇÃO · 2026</p>
+    <h1>Rio das Mortes</h1>
     <p id="download-size">O pacote offline ainda está sendo preparado.</p>
-    <p style="font-size:13px; color:#666; margin-top:4px;">Mantenha a tela aberta até completar</p>
-    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    <p class="download-hint">Você já pode usar o mapa; mantenha a tela aberta até completar.</p>
+    <div class="progress-bar" id="progress-bar" role="progressbar" aria-label="Download das imagens offline" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="progress-fill" id="progress-fill"></div></div>
     <p id="progress-text">Conectando...</p>
     <button id="resume-btn" class="resume-btn" onclick="resumeDownload()" style="display:none">
-      Parou? Baixe tudo
+      Tentar novamente
     </button>
   </div>
 </div>
@@ -34,66 +38,71 @@
     <span class="metric-label">FALTAM</span>
     <strong id="remaining-display">-- km</strong>
   </div>
+  <div class="route-id" aria-hidden="true">
+    <span>MORTES</span>
+    <i></i>
+    <small>2026</small>
+  </div>
   <div class="metric-block metric-block-right">
     <span class="metric-label">VELOCIDADE</span>
     <strong id="speed-display">-- km/h</strong>
   </div>
 </div>
 
-<div id="gps-btn" class="map-btn" onclick="toggleGPS()">
+<button id="gps-btn" class="map-btn" type="button" onclick="toggleGPS()" aria-label="Ativar ou desativar GPS">
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
     <circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
   </svg>
-</div>
+</button>
 
-<div id="center-btn" class="map-btn" onclick="toggleCenter()" style="display:none">
+<button id="center-btn" class="map-btn" type="button" onclick="toggleCenter()" style="display:none" aria-label="Ativar ou desativar acompanhamento automático">
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
     <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/>
   </svg>
-</div>
+</button>
 
 <div id="layer-column">
   <button id="km-toggle-btn" class="map-btn layer-btn" type="button" onclick="toggleKmDetail()" aria-label="Mostrar todos os quilômetros">
     <span style="font-size:12px; font-weight:800; line-height:1">KM</span>
   </button>
+  <button id="roads-toggle-btn" class="map-btn layer-btn active" type="button" onclick="toggleRoads()" aria-label="Mostrar ou ocultar estradas logísticas">
+    <span style="font-size:20px; line-height:1">🛣️</span>
+  </button>
   <button id="notes-btn" class="map-btn layer-btn" type="button" onclick="toggleNoteCreation()" aria-label="Ativar criação de anotações">
     <span style="font-size:20px; line-height:1">📝</span>
     <small id="notes-count">0</small>
   </button>
-  <div id="poi-toggle-btn" class="map-btn layer-btn" onclick="togglePOIDrawer()">
+  <button id="poi-toggle-btn" class="map-btn layer-btn" type="button" onclick="togglePOIDrawer()" aria-label="Abrir filtros de pontos de interesse" aria-expanded="false">
     <span style="line-height:1">📍</span>
-  </div>
+  </button>
   <div id="poi-drawer">
-    <div id="toggle-beach" class="map-btn layer-btn" onclick="togglePOILayer('beach')">
+    <button id="toggle-beach" class="map-btn layer-btn" type="button" onclick="togglePOILayer('beach')" aria-label="Mostrar praias" title="Praias">
       <span style="font-size:20px; line-height:1">🏖️</span>
-    </div>
-    <div id="toggle-exit" class="map-btn layer-btn" onclick="togglePOILayer('exit')">
+    </button>
+    <button id="toggle-exit" class="map-btn layer-btn" type="button" onclick="togglePOILayer('exit')" aria-label="Mostrar acessos de carro" title="Acessos de carro">
       <span style="font-size:20px; line-height:1">🚗</span>
-    </div>
-    <div id="toggle-bridge" class="map-btn layer-btn" onclick="togglePOILayer('bridge')">
+    </button>
+    <button id="toggle-bridge" class="map-btn layer-btn" type="button" onclick="togglePOILayer('bridge')" aria-label="Mostrar pontes" title="Pontes">
       <span style="font-size:20px; line-height:1">🌉</span>
-    </div>
-    <div id="toggle-island" class="map-btn layer-btn" onclick="togglePOILayer('island')">
+    </button>
+    <button id="toggle-island" class="map-btn layer-btn" type="button" onclick="togglePOILayer('island')" aria-label="Mostrar ilhas" title="Ilhas">
       <span style="font-size:20px; line-height:1">🏝️</span>
-    </div>
-    <div id="toggle-town" class="map-btn layer-btn" onclick="togglePOILayer('town')">
+    </button>
+    <button id="toggle-town" class="map-btn layer-btn" type="button" onclick="togglePOILayer('town')" aria-label="Mostrar povoados" title="Povoados">
       <span style="font-size:20px; line-height:1">🏘️</span>
-    </div>
-    <div id="toggle-house" class="map-btn layer-btn" onclick="togglePOILayer('house')">
+    </button>
+    <button id="toggle-house" class="map-btn layer-btn" type="button" onclick="togglePOILayer('house')" aria-label="Mostrar casas" title="Casas">
       <span style="font-size:20px; line-height:1">🏠</span>
-    </div>
-    <div id="toggle-lagoon" class="map-btn layer-btn" onclick="togglePOILayer('lagoon')">
+    </button>
+    <button id="toggle-lagoon" class="map-btn layer-btn" type="button" onclick="togglePOILayer('lagoon')" aria-label="Mostrar lagos" title="Lagos">
       <span style="font-size:20px; line-height:1">💧</span>
-    </div>
-    <div id="toggle-health" class="map-btn layer-btn" onclick="togglePOILayer('health')">
-      <span style="font-size:20px; line-height:1">🏥</span>
-    </div>
-    <div id="toggle-airstrip" class="map-btn layer-btn" onclick="togglePOILayer('airstrip')">
+    </button>
+    <button id="toggle-airstrip" class="map-btn layer-btn" type="button" onclick="togglePOILayer('airstrip')" aria-label="Mostrar pistas de pouso" title="Pistas de pouso">
       <span style="font-size:20px; line-height:1">🛩️</span>
-    </div>
-    <div id="hospital-btn" class="map-btn layer-btn" onclick="showHospitals()">
+    </button>
+    <button id="hospital-btn" class="map-btn layer-btn emergency-btn" type="button" onclick="showHospitals()" aria-label="Abrir referências para acidentes com animais peçonhentos" title="Referências antiveneno">
       <span style="font-size:20px; line-height:1">🐍</span>
-    </div>
+    </button>
   </div>
 </div>
 
@@ -103,9 +112,11 @@
 </div>
 
 <div id="coords-display" style="display:none"></div>
-<div id="map-attribution">Rota: KML da equipe · Imagens: Google Satellite</div>
+<button id="imagery-status" type="button" onclick="showImageryStatus()">IMAGENS OFFLINE · INPE</button>
+<div id="map-attribution">Imagens © INPE/CBERS-4A · CC BY 4.0</div>
+</main>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="vendor/leaflet/leaflet.js"></script>
 <script src="route-data.js"></script>
 <script src="tile-manifest.js"></script>
 <script src="app.js"></script>

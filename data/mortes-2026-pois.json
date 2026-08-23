@@ -1,0 +1,508 @@
+{
+  "source": {
+    "title": "mortes 2026",
+    "publicSnapshot": "data/mortes-2026-pois.json",
+    "sheet": "Sheet1",
+    "sheetId": 0,
+    "range": "D2:J23",
+    "retrievedOn": "2026-08-20",
+    "authority": "Sole POI source requested by Edu"
+  },
+  "pois": [
+    {
+      "id": "beach-01",
+      "name": "Praia 01",
+      "type": "beach",
+      "lat": -12.80521111,
+      "lon": -51.01759722,
+      "sourceCell": "D3",
+      "sourceCoordinate": "12°48'18.76\"S 51°01'03.35\"W"
+    },
+    {
+      "id": "exit-01",
+      "name": "Acesso de carro 01",
+      "type": "exit",
+      "lat": -12.81645278,
+      "lon": -51.02539167,
+      "sourceCell": "E3",
+      "sourceCoordinate": "12°48'59.23\"S 51°01'31.41\"W"
+    },
+    {
+      "id": "island-01",
+      "name": "Ilha 01",
+      "type": "island",
+      "lat": -12.80077222,
+      "lon": -51.01545556,
+      "sourceCell": "F3",
+      "sourceCoordinate": "12°48'02.78\"S 51°00'55.64\"W"
+    },
+    {
+      "id": "town-01",
+      "name": "Povoado 01",
+      "type": "town",
+      "lat": -12.47366389,
+      "lon": -50.99293056,
+      "sourceCell": "G3",
+      "sourceCoordinate": "12°28'25.19\"S 50°59'34.55\"W"
+    },
+    {
+      "id": "house-01",
+      "name": "Casa 01",
+      "type": "house",
+      "lat": -12.76929722,
+      "lon": -51.00629444,
+      "sourceCell": "H3",
+      "sourceCoordinate": "12°46'09.47\"S 51°00'22.66\"W"
+    },
+    {
+      "id": "lagoon-01",
+      "name": "Lago 01",
+      "type": "lagoon",
+      "lat": -12.51170278,
+      "lon": -50.98353056,
+      "sourceCell": "I3",
+      "sourceCoordinate": "12°30'42.13\"S 50°59'00.71\"W"
+    },
+    {
+      "id": "airstrip-01",
+      "name": "Pista de pouso 01",
+      "type": "airstrip",
+      "lat": -12.61894444,
+      "lon": -50.91735556,
+      "sourceCell": "J3",
+      "sourceCoordinate": "12°37'08.20\"S 50°55'02.48\"W"
+    },
+    {
+      "id": "beach-02",
+      "name": "Praia 02",
+      "type": "beach",
+      "lat": -12.78487778,
+      "lon": -50.99282222,
+      "sourceCell": "D4",
+      "sourceCoordinate": "12°47'05.56\"S 50°59'34.16\"W"
+    },
+    {
+      "id": "exit-02",
+      "name": "Acesso de carro 02",
+      "type": "exit",
+      "lat": -12.79255278,
+      "lon": -51.01258056,
+      "sourceCell": "E4",
+      "sourceCoordinate": "12°47'33.19\"S 51°00'45.29\"W"
+    },
+    {
+      "id": "island-02",
+      "name": "Ilha 02",
+      "type": "island",
+      "lat": -12.77919167,
+      "lon": -50.99085833,
+      "sourceCell": "F4",
+      "sourceCoordinate": "12°46'45.09\"S 50°59'27.09\"W"
+    },
+    {
+      "id": "town-02",
+      "name": "Povoado 02",
+      "type": "town",
+      "lat": -12.29608056,
+      "lon": -50.96866389,
+      "sourceCell": "G4",
+      "sourceCoordinate": "12°17'45.89\"S 50°58'07.19\"W"
+    },
+    {
+      "id": "house-02",
+      "name": "Casa 02",
+      "type": "house",
+      "lat": -12.68353611,
+      "lon": -50.92069167,
+      "sourceCell": "H4",
+      "sourceCoordinate": "12°41'00.73\"S 50°55'14.49\"W"
+    },
+    {
+      "id": "lagoon-02",
+      "name": "Lago 02",
+      "type": "lagoon",
+      "lat": -12.50234167,
+      "lon": -50.97263611,
+      "sourceCell": "I4",
+      "sourceCoordinate": "12°30'08.43\"S 50°58'21.49\"W"
+    },
+    {
+      "id": "airstrip-02",
+      "name": "Pista de pouso 02",
+      "type": "airstrip",
+      "lat": -12.29776111,
+      "lon": -50.97906111,
+      "sourceCell": "J4",
+      "sourceCoordinate": "12°17'51.94\"S 50°58'44.62\"W"
+    },
+    {
+      "id": "beach-03",
+      "name": "Praia 03",
+      "type": "beach",
+      "lat": -12.76989722,
+      "lon": -50.98021667,
+      "sourceCell": "D5",
+      "sourceCoordinate": "12°46'11.63\"S 50°58'48.78\"W"
+    },
+    {
+      "id": "exit-03",
+      "name": "Acesso de carro 03",
+      "type": "exit",
+      "lat": -12.71710833,
+      "lon": -50.98086111,
+      "sourceCell": "E5",
+      "sourceCoordinate": "12°43'01.59\"S 50°58'51.10\"W"
+    },
+    {
+      "id": "island-03",
+      "name": "Ilha 03",
+      "type": "island",
+      "lat": -12.7748,
+      "lon": -50.98518611,
+      "sourceCell": "F5",
+      "sourceCoordinate": "12°46'29.28\"S 50°59'06.67\"W"
+    },
+    {
+      "id": "town-03",
+      "name": "Povoado 03",
+      "type": "town",
+      "lat": -12.77254722,
+      "lon": -50.93164722,
+      "sourceCell": "G5",
+      "sourceCoordinate": "12°46'21.17\"S 50°55'53.93\"W"
+    },
+    {
+      "id": "house-03",
+      "name": "Casa 03",
+      "type": "house",
+      "lat": -12.51110556,
+      "lon": -50.98949444,
+      "sourceCell": "H5",
+      "sourceCoordinate": "12°30'39.98\"S 50°59'22.18\"W"
+    },
+    {
+      "id": "lagoon-03",
+      "name": "Lago 03",
+      "type": "lagoon",
+      "lat": -12.65177222,
+      "lon": -50.93948889,
+      "sourceCell": "I5",
+      "sourceCoordinate": "12°39'06.38\"S 50°56'22.16\"W"
+    },
+    {
+      "id": "airstrip-03",
+      "name": "Pista de pouso 03",
+      "type": "airstrip",
+      "lat": -12.78786667,
+      "lon": -50.97361111,
+      "sourceCell": "J5",
+      "sourceCoordinate": "12°47'16.32\"S 50°58'25.00\"W"
+    },
+    {
+      "id": "beach-04",
+      "name": "Praia 04",
+      "type": "beach",
+      "lat": -12.74819167,
+      "lon": -50.97806389,
+      "sourceCell": "D6",
+      "sourceCoordinate": "12°44'53.49\"S 50°58'41.03\"W"
+    },
+    {
+      "id": "island-04",
+      "name": "Ilha 04",
+      "type": "island",
+      "lat": -12.71454167,
+      "lon": -50.96797222,
+      "sourceCell": "F6",
+      "sourceCoordinate": "12°42'52.35\"S 50°58'04.70\"W"
+    },
+    {
+      "id": "house-04",
+      "name": "Casa 04",
+      "type": "house",
+      "lat": -12.36996111,
+      "lon": -50.94521111,
+      "sourceCell": "H6",
+      "sourceCoordinate": "12°22'11.86\"S 50°56'42.76\"W"
+    },
+    {
+      "id": "airstrip-04",
+      "name": "Pista de pouso 04",
+      "type": "airstrip",
+      "lat": -12.77578056,
+      "lon": -50.92719444,
+      "sourceCell": "J6",
+      "sourceCoordinate": "12°46'32.81\"S 50°55'37.90\"W"
+    },
+    {
+      "id": "beach-05",
+      "name": "Praia 05",
+      "type": "beach",
+      "lat": -12.71565833,
+      "lon": -50.97032778,
+      "sourceCell": "D7",
+      "sourceCoordinate": "12°42'56.37\"S 50°58'13.18\"W"
+    },
+    {
+      "id": "island-05",
+      "name": "Ilha 05",
+      "type": "island",
+      "lat": -12.615225,
+      "lon": -50.92626111,
+      "sourceCell": "F7",
+      "sourceCoordinate": "12°36'54.81\"S 50°55'34.54\"W"
+    },
+    {
+      "id": "house-05",
+      "name": "Casa 05",
+      "type": "house",
+      "lat": -12.53518056,
+      "lon": -50.94818889,
+      "sourceCell": "H7",
+      "sourceCoordinate": "12°32'06.65\"S 50°56'53.48\"W"
+    },
+    {
+      "id": "beach-06",
+      "name": "Praia 06",
+      "type": "beach",
+      "lat": -12.692475,
+      "lon": -50.94756111,
+      "sourceCell": "D8",
+      "sourceCoordinate": "12°41'32.91\"S 50°56'51.22\"W"
+    },
+    {
+      "id": "island-06",
+      "name": "Ilha 06",
+      "type": "island",
+      "lat": -12.59507778,
+      "lon": -50.94349444,
+      "sourceCell": "F8",
+      "sourceCoordinate": "12°35'42.28\"S 50°56'36.58\"W"
+    },
+    {
+      "id": "house-06",
+      "name": "Casa 06",
+      "type": "house",
+      "lat": -12.62585278,
+      "lon": -50.91838611,
+      "sourceCell": "H8",
+      "sourceCoordinate": "12°37'33.07\"S 50°55'06.19\"W"
+    },
+    {
+      "id": "beach-07",
+      "name": "Praia 07",
+      "type": "beach",
+      "lat": -12.68418056,
+      "lon": -50.93456389,
+      "sourceCell": "D9",
+      "sourceCoordinate": "12°41'03.05\"S 50°56'04.43\"W"
+    },
+    {
+      "id": "island-07",
+      "name": "Ilha 07",
+      "type": "island",
+      "lat": -12.56822222,
+      "lon": -50.95802222,
+      "sourceCell": "F9",
+      "sourceCoordinate": "12°34'05.60\"S 50°57'28.88\"W"
+    },
+    {
+      "id": "house-07",
+      "name": "Casa 07",
+      "type": "house",
+      "lat": -12.73450833,
+      "lon": -50.96205278,
+      "sourceCell": "H9",
+      "sourceCoordinate": "12°44'04.23\"S 50°57'43.39\"W"
+    },
+    {
+      "id": "beach-08",
+      "name": "Praia 08",
+      "type": "beach",
+      "lat": -12.65845556,
+      "lon": -50.93389722,
+      "sourceCell": "D10",
+      "sourceCoordinate": "12°39'30.44\"S 50°56'02.03\"W"
+    },
+    {
+      "id": "island-08",
+      "name": "Ilha 08",
+      "type": "island",
+      "lat": -12.54479167,
+      "lon": -50.955025,
+      "sourceCell": "F10",
+      "sourceCoordinate": "12°32'41.25\"S 50°57'18.09\"W"
+    },
+    {
+      "id": "house-08",
+      "name": "Casa 08",
+      "type": "house",
+      "lat": -12.79026667,
+      "lon": -50.97931389,
+      "sourceCell": "H10",
+      "sourceCoordinate": "12°47'24.96\"S 50°58'45.53\"W"
+    },
+    {
+      "id": "beach-09",
+      "name": "Praia 09",
+      "type": "beach",
+      "lat": -12.63688611,
+      "lon": -50.93317778,
+      "sourceCell": "D11",
+      "sourceCoordinate": "12°38'12.79\"S 50°55'59.44\"W"
+    },
+    {
+      "id": "island-09",
+      "name": "Ilha 09",
+      "type": "island",
+      "lat": -12.53326667,
+      "lon": -50.95412778,
+      "sourceCell": "F11",
+      "sourceCoordinate": "12°31'59.76\"S 50°57'14.86\"W"
+    },
+    {
+      "id": "beach-10",
+      "name": "Praia 10",
+      "type": "beach",
+      "lat": -12.545875,
+      "lon": -50.95047222,
+      "sourceCell": "D12",
+      "sourceCoordinate": "12°32'45.15\"S 50°57'01.70\"W"
+    },
+    {
+      "id": "island-10",
+      "name": "Ilha 10",
+      "type": "island",
+      "lat": -12.42720278,
+      "lon": -50.97999444,
+      "sourceCell": "F12",
+      "sourceCoordinate": "12°25'37.93\"S 50°58'47.98\"W"
+    },
+    {
+      "id": "beach-11",
+      "name": "Praia 11",
+      "type": "beach",
+      "lat": -12.51607222,
+      "lon": -50.95885,
+      "sourceCell": "D13",
+      "sourceCoordinate": "12°30'57.86\"S 50°57'31.86\"W"
+    },
+    {
+      "id": "island-11",
+      "name": "Ilha 11",
+      "type": "island",
+      "lat": -12.38375,
+      "lon": -50.99026389,
+      "sourceCell": "F13",
+      "sourceCoordinate": "12°23'01.50\"S 50°59'24.95\"W"
+    },
+    {
+      "id": "beach-12",
+      "name": "Praia 12",
+      "type": "beach",
+      "lat": -12.51630556,
+      "lon": -50.98261389,
+      "sourceCell": "D14",
+      "sourceCoordinate": "12°30'58.70\"S 50°58'57.41\"W"
+    },
+    {
+      "id": "island-12",
+      "name": "Ilha 12",
+      "type": "island",
+      "lat": -12.34920556,
+      "lon": -50.96974167,
+      "sourceCell": "F14",
+      "sourceCoordinate": "12°20'57.14\"S 50°58'11.07\"W"
+    },
+    {
+      "id": "beach-13",
+      "name": "Praia 13",
+      "type": "beach",
+      "lat": -12.51045556,
+      "lon": -50.98669722,
+      "sourceCell": "D15",
+      "sourceCoordinate": "12°30'37.64\"S 50°59'12.11\"W"
+    },
+    {
+      "id": "island-13",
+      "name": "Ilha 13",
+      "type": "island",
+      "lat": -12.36151667,
+      "lon": -50.95067222,
+      "sourceCell": "F15",
+      "sourceCoordinate": "12°21'41.46\"S 50°57'02.42\"W"
+    },
+    {
+      "id": "beach-14",
+      "name": "Praia 14",
+      "type": "beach",
+      "lat": -12.50185,
+      "lon": -50.97823056,
+      "sourceCell": "D16",
+      "sourceCoordinate": "12°30'06.66\"S 50°58'41.63\"W"
+    },
+    {
+      "id": "beach-15",
+      "name": "Praia 15",
+      "type": "beach",
+      "lat": -12.43236389,
+      "lon": -50.98273889,
+      "sourceCell": "D17",
+      "sourceCoordinate": "12°25'56.51\"S 50°58'57.86\"W"
+    },
+    {
+      "id": "beach-16",
+      "name": "Praia 16",
+      "type": "beach",
+      "lat": -12.399525,
+      "lon": -50.99333611,
+      "sourceCell": "D18",
+      "sourceCoordinate": "12°23'58.29\"S 50°59'36.01\"W"
+    },
+    {
+      "id": "beach-17",
+      "name": "Praia 17",
+      "type": "beach",
+      "lat": -12.38359444,
+      "lon": -50.98660278,
+      "sourceCell": "D19",
+      "sourceCoordinate": "12°23'00.94\"S 50°59'11.77\"W"
+    },
+    {
+      "id": "beach-18",
+      "name": "Praia 18",
+      "type": "beach",
+      "lat": -12.36671667,
+      "lon": -50.99220278,
+      "sourceCell": "D20",
+      "sourceCoordinate": "12°22'00.18\"S 50°59'31.93\"W"
+    },
+    {
+      "id": "beach-19",
+      "name": "Praia 19",
+      "type": "beach",
+      "lat": -12.36392222,
+      "lon": -50.949775,
+      "sourceCell": "D21",
+      "sourceCoordinate": "12°21'50.12\"S 50°56'59.19\"W"
+    },
+    {
+      "id": "beach-20",
+      "name": "Praia 20",
+      "type": "beach",
+      "lat": -12.32633056,
+      "lon": -50.97754722,
+      "sourceCell": "D22",
+      "sourceCoordinate": "12°19'34.79\"S 50°58'39.17\"W"
+    },
+    {
+      "id": "beach-21",
+      "name": "Praia 21",
+      "type": "beach",
+      "lat": -12.32223056,
+      "lon": -50.95778611,
+      "sourceCell": "D23",
+      "sourceCoordinate": "12°19'20.03\"S 50°57'28.03\"W"
+    }
+  ]
+}

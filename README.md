@@ -1,15 +1,25 @@
 # Rio das Mortes 2026
 
-Mapa GPS offline (PWA) para a expedição de canoa entre Vila Berrante e Novo Santo Antônio.
+Guia de campo instalável (PWA) para a expedição de canoa entre Vila Berrante e Novo Santo Antônio.
+
+- App: https://educrvz.github.io/rio-das-mortes-2026/
+- Instalação: https://educrvz.github.io/rio-das-mortes-2026/instrucoes.html
 
 ## Estado atual
 
-- Projeto iniciado a partir do app Carinhanha 2026.
-- Fonte: `data/Mortes-2026.kml`, recebido na pasta `00_WhatsApp_transfer` do Google Drive.
+- Interface própria do Rio das Mortes, otimizada para uso no celular durante a expedição.
+- Leaflet e todos os recursos do app-base são locais; rota, estradas, POIs, referências de emergência e notas carregam sem internet após a instalação.
+- Rota e estradas: `data/Mortes-092026.kml`, recebido da equipe.
+- POIs: `data/mortes-2026-pois.json`, transcrição rastreável da planilha Google `mortes 2026` (`Sheet1!D2:J23`).
 - Rota oficial do KML: LineString detalhada com 84 vértices.
 - 93 pontos quilométricos (`000` a `091` e `FIM`) preservados nas coordenadas do KML.
-- 19 POIs únicos importados das pastas `Cidades` e `POI` do arquivo-fonte.
-- Rota, POIs e interface ainda precisam de validação visual antes da geração do pacote offline.
+- 55 POIs oficiais: 21 praias, 3 acessos de carro, 13 ilhas, 3 povoados, 8 casas, 3 lagos e 4 pistas de pouso.
+- Os POIs anteriores do KML e as pré-seleções visuais foram removidos; a planilha é a única fonte de POIs.
+- Cinco estradas logísticas, 5.390 vértices e aproximadamente 682,6 km.
+- Três referências oficiais para acidentes com animais peçonhentos: Novo Santo Antônio, São Félix do Araguaia e Ribeirão Cascalheira.
+- Cobertura offline concluída: rio até zoom 17 e estradas até zoom 16.
+- Imagens offline: 16.685 tiles / 101,9 MB, derivados de cenas coloridas CBERS-4A/WPM de 2 m publicadas pelo INPE sob CC BY 4.0.
+- Cenas e URLs de origem fixadas em `data/mortes-2026-imagery.json`; pipeline reproduzível em `build-inpe-tiles.py`.
 
 ## Gerar dados
 
@@ -17,12 +27,28 @@ Mapa GPS offline (PWA) para a expedição de canoa entre Vila Berrante e Novo Sa
 python3 generate-route-data.py
 ```
 
-O gerador usa diretamente a LineString `Rio das Mortes (Vila Berrante- NSA)`, valida a ordem e o alinhamento dos pontos quilométricos, e produz `route-data.js`.
+O gerador usa a LineString `Rio das Mortes (Vila Berrante- NSA)`, valida os pontos quilométricos, incorpora as cinco estradas, converte os 55 POIs oficiais e adiciona as três referências de emergência verificadas para `route-data.js`. Cada POI preserva a célula-fonte da planilha e recebe km aproximado da rota.
 
-## Próximas etapas
+## Uso local
 
-1. Validar visualmente a rota e os POIs.
-2. Confirmar as referências de emergência sem presumir estoque em tempo real.
-3. Gerar e baixar o corredor de tiles com `python3 download-tiles.py`.
-4. Atualizar as estimativas de tamanho nas telas do app.
-5. Executar testes móveis, offline e de produção.
+```bash
+python3 -m http.server 8080
+```
+
+Abra `http://localhost:8080/instrucoes.html`. O app requer HTTP/HTTPS para registrar o service worker; não abra `index.html` diretamente pelo Finder.
+
+## Validar uma versão de produção
+
+1. Instalar a dependência do validador: `pip install Pillow==12.3.0`.
+2. Executar `python3 generate-route-data.py` e confirmar que `route-data.js` não mudou.
+3. Executar `python3 validate-release.py`.
+4. Executar `node --check app.js`, `node --check sw.js` e `node --check route-data.js`.
+5. Instalar e testar no aparelho real com GPS e modo avião antes da viagem.
+
+Para reproduzir o pacote de imagens, instale `requirements-imagery.txt` e execute `python3 build-inpe-tiles.py`. O processo retoma tiles ausentes; `--repair-blank` substitui tiles inteiramente sem dados e `--repair-edge` recompõe bordas pretas usando cenas sobrepostas.
+
+## Imagens e licença
+
+Imagens © Instituto Nacional de Pesquisas Espaciais (INPE), coleção CBERS-4A/WPM PCA Fused, resolução de 2 m. Licença [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/). Cenas selecionadas entre agosto de 2025 e agosto de 2026.
+
+Veja também [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).

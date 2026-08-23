@@ -1,0 +1,27 @@
+{
+  "provider": "Instituto Nacional de Pesquisas Espaciais (INPE)",
+  "collection": "CB4A-WPM-PCA-FUSED-1",
+  "collectionUrl": "https://data.inpe.br/bdc/stac/v1/collections/CB4A-WPM-PCA-FUSED-1",
+  "license": "CC BY 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "resolutionMeters": 2,
+  "selectionNote": "Dry-season true-color scenes selected for full river and logistics-road coverage.",
+  "scenes": [
+    {"id":"CBERS4A_WPM_PCA_RGB321_20260804_210_128","date":"2026-08-04","bbox":[-50.738514,-12.415842,-49.716145,-11.435616],"url":"https://data.inpe.br/bdc/data/CB4A-WPM-PCA-FUSED/v001/210/128/2026/8/CBERS4A_WPM_PCA_RGB321_20260804_210_128.tif"},
+    {"id":"CBERS4A_WPM_PCA_RGB321_20250828_210_129","date":"2025-08-28","bbox":[-50.7425,-13.208887,-49.717316,-12.229202],"url":"https://data.inpe.br/bdc/data/CB4A-WPM-PCA-FUSED/v001/210/129/2025/8/CBERS4A_WPM_PCA_RGB321_20250828_210_129.tif"},
+    {"id":"CBERS4A_WPM_PCA_RGB321_20250828_210_130","date":"2025-08-28","bbox":[-50.912052,-14.002649,-49.882991,-13.021989],"url":"https://data.inpe.br/bdc/data/CB4A-WPM-PCA-FUSED/v001/210/130/2025/8/CBERS4A_WPM_PCA_RGB321_20250828_210_130.tif"},
+    {"id":"CBERS4A_WPM_PCA_RGB321_20250828_210_131","date":"2025-08-28","bbox":[-51.08241,-14.795792,-50.049418,-13.815391],"url":"https://data.inpe.br/bdc/data/CB4A-WPM-PCA-FUSED/v001/210/131/2025/8/CBERS4A_WPM_PCA_RGB321_20250828_210_131.tif"},
+    {"id":"CBERS4A_WPM_PCA_RGB321_20250823_211_127","date":"2025-08-23","bbox":[-51.171588,-11.621675,-50.153941,-10.643238],"url":"https://data.inpe.br/bdc/data/CB4A-WPM-PCA-FUSED/v001/211/127/2025/8/CBERS4A_WPM_PCA_RGB321_20250823_211_127.tif"},
+    {"id":"CBERS4A_WPM_PCA_RGB321_20250823_211_128","date":"2025-08-23","bbox":[-51.339548,-12.415495,-50.318427,-11.43601],"url":"https://data.inpe.br/bdc/data/CB4A-WPM-PCA-FUSED/v001/211/128/2025/8/CBERS4A_WPM_PCA_RGB321_20250823_211_128.tif"},
+    {"id":"CBERS4A_WPM_PCA_RGB321_20250823_211_129","date":"2025-08-23","bbox":[-51.508264,-13.209006,-50.483627,-12.229446],"url":"https://data.inpe.br/bdc/data/CB4A-WPM-PCA-FUSED/v001/211/129/2025/8/CBERS4A_WPM_PCA_RGB321_20250823_211_129.tif"},
+    {"id":"CBERS4A_WPM_PCA_RGB321_20250823_211_130","date":"2025-08-23","bbox":[-51.677743,-14.002377,-50.649349,-13.022476],"url":"https://data.inpe.br/bdc/data/CB4A-WPM-PCA-FUSED/v001/211/130/2025/8/CBERS4A_WPM_PCA_RGB321_20250823_211_130.tif"},
+    {"id":"CBERS4A_WPM_PCA_RGB321_20250823_211_131","date":"2025-08-23","bbox":[-51.848245,-14.796137,-50.815711,-13.815348],"url":"https://data.inpe.br/bdc/data/CB4A-WPM-PCA-FUSED/v001/211/131/2025/8/CBERS4A_WPM_PCA_RGB321_20250823_211_131.tif"},
+    {"id":"CBERS4A_WPM_PCA_RGB321_20250818_212_127","date":"2025-08-18","bbox":[-51.925115,-11.621364,-50.90814,-10.643313],"url":"https://data.inpe.br/bdc/data/CB4A-WPM-PCA-FUSED/v001/212/127/2025/8/CBERS4A_WPM_PCA_RGB321_20250818_212_127.tif"},
+    {"id":"CBERS4A_WPM_PCA_RGB321_20250818_212_128","date":"2025-08-18","bbox":[-52.093045,-12.415056,-51.072753,-11.436562],"url":"https://data.inpe.br/bdc/data/CB4A-WPM-PCA-FUSED/v001/212/128/2025/8/CBERS4A_WPM_PCA_RGB321_20250818_212_128.tif"},
+    {"id":"CBERS4A_WPM_PCA_RGB321_20250818_212_129","date":"2025-08-18","bbox":[-52.261738,-13.208727,-51.237904,-12.229661],"url":"https://data.inpe.br/bdc/data/CB4A-WPM-PCA-FUSED/v001/212/129/2025/8/CBERS4A_WPM_PCA_RGB321_20250818_212_129.tif"},
+    {"id":"CBERS4A_WPM_PCA_RGB321_20250818_212_130","date":"2025-08-18","bbox":[-52.431314,-14.002409,-51.403623,-13.022753],"url":"https://data.inpe.br/bdc/data/CB4A-WPM-PCA-FUSED/v001/212/130/2025/8/CBERS4A_WPM_PCA_RGB321_20250818_212_130.tif"},
+    {"id":"CBERS4A_WPM_PCA_RGB321_20250818_212_131","date":"2025-08-18","bbox":[-52.601654,-14.795568,-51.569987,-13.815626],"url":"https://data.inpe.br/bdc/data/CB4A-WPM-PCA-FUSED/v001/212/131/2025/8/CBERS4A_WPM_PCA_RGB321_20250818_212_131.tif"},
+    {"id":"CBERS4A_WPM_PCA_RGB321_20250913_213_127","date":"2025-09-13","bbox":[-52.675963,-11.622108,-51.658293,-10.643089],"url":"https://data.inpe.br/bdc/data/CB4A-WPM-PCA-FUSED/v001/213/127/2025/9/CBERS4A_WPM_PCA_RGB321_20250913_213_127.tif"},
+    {"id":"CBERS4A_WPM_PCA_RGB321_20250913_213_128","date":"2025-09-13","bbox":[-52.843789,-12.415597,-51.82281,-11.43614],"url":"https://data.inpe.br/bdc/data/CB4A-WPM-PCA-FUSED/v001/213/128/2025/9/CBERS4A_WPM_PCA_RGB321_20250913_213_128.tif"}
+  ]
+}
