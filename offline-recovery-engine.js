@@ -9,7 +9,7 @@
   const RETRY_SHARE = 50;
   const WINDOW_SIZE = 20;
   const INITIAL_CONCURRENCY = 6;
-  const MIN_CONCURRENCY = 2;
+  const MIN_CONCURRENCY = 1;
   const MAX_CONCURRENCY = 12;
   const MAX_ATTEMPTS = 4;
   const INTEGRITY_ATTEMPTS = 2;
@@ -61,7 +61,8 @@
         nextAttemptAt: entry.nextAttemptAt,
         kind: entry.kind === 'integrity' ? 'integrity' : 'retryable',
         terminal: Boolean(entry.terminal),
-        status: Number.isInteger(entry.status) ? entry.status : null
+        status: Number.isInteger(entry.status) ? entry.status : null,
+        reason: typeof entry.reason === 'string' ? entry.reason.slice(0, 80) : null
       };
       if (!previous || candidate.attempts > previous.attempts) {
         deduplicated.set(entry.url, candidate);
@@ -163,6 +164,7 @@
     }
     entry.attempts += 1;
     entry.status = outcome.status || null;
+    entry.reason = typeof outcome.reason === 'string' ? outcome.reason.slice(0, 80) : null;
     if (outcome.kind === 'integrity') {
       entry.kind = 'integrity';
       entry.terminal = entry.attempts >= INTEGRITY_ATTEMPTS;
@@ -292,12 +294,17 @@
     }
 
     function registerOutcome(runtime, state, outcome) {
-      if (outcome.cached || outcome.aborted || outcome.storageBlocked || outcome.cacheRuntimeBlocked) return false;
+      if (outcome.cached || outcome.aborted || outcome.storageBlocked) return false;
       runtime.completed += 1;
       if (['retryable', 'rate-limit', 'timeout', 'network'].includes(outcome.kind)) {
         runtime.retryableFailures += 1;
       }
-      if (outcome.kind === 'timeout' || outcome.kind === 'rate-limit') {
+      if (outcome.kind === 'cache-runtime') {
+        runtime.concurrency = Math.max(MIN_CONCURRENCY, Math.floor(runtime.concurrency / 2));
+        runtime.cleanWindows = 0;
+        runtime.pressure = true;
+        runtime.pressureAdjusted = true;
+      } else if (outcome.kind === 'timeout' || outcome.kind === 'rate-limit') {
         runtime.pressure = true;
         if (!runtime.pressureAdjusted) {
           runtime.concurrency = Math.max(MIN_CONCURRENCY, Math.floor(runtime.concurrency / 2));
@@ -350,9 +357,14 @@
           try {
             await cache.put(item.url, response);
           } catch (error) {
-            return isQuotaError(error)
-              ? { storageBlocked: true, kind: 'storage', advance: false }
-              : { cacheRuntimeBlocked: true, kind: 'cache-runtime', advance: false };
+            if (isQuotaError(error)) {
+              return { storageBlocked: true, kind: 'storage', advance: false };
+            }
+            const outcome = {
+              kind: 'cache-runtime', reason: error?.name || 'CacheWriteError', advance: true
+            };
+            recordFailure(state, item.url, outcome);
+            return outcome;
           }
           state.stored = Math.min(state.total, state.stored + 1);
           clearFailure(state, item.url);
@@ -372,8 +384,7 @@
       let position = 0;
       let primaryAdvanced = 0;
       let storageBlocked = false;
-      let cacheRuntimeBlocked = false;
-      while (position < work.length && !state.circuit.open && !storageBlocked && !cacheRuntimeBlocked) {
+      while (position < work.length && !state.circuit.open && !storageBlocked) {
         const remainingInWindow = WINDOW_SIZE - runtime.completed;
         const size = Math.min(runtime.concurrency, remainingInWindow, work.length - position);
         const batch = work.slice(position, position + size);
@@ -381,13 +392,11 @@
         for (let index = 0; index < outcomes.length; index++) {
           const outcome = outcomes[index];
           if (outcome.storageBlocked) storageBlocked = true;
-          if (outcome.cacheRuntimeBlocked) cacheRuntimeBlocked = true;
           if (batch[index].primary && outcome.advance && primaryAdvanced === batch[index].primaryOffset) {
             primaryAdvanced += 1;
           }
           registerOutcome(runtime, state, outcome);
         }
-        if (cacheRuntimeBlocked) return { storageBlocked: false, cacheRuntimeBlocked: true };
         position += batch.length;
         state.cursor += primaryAdvanced;
         work.forEach(item => { if (item.primary) item.primaryOffset -= primaryAdvanced; });
@@ -401,7 +410,7 @@
           total: state.total, concurrency: runtime.concurrency
         });
       }
-      return { storageBlocked, cacheRuntimeBlocked };
+      return { storageBlocked };
     }
 
     async function handleOpenCircuit(cache, progressUrl, state, tileUrls, runtime) {
@@ -466,7 +475,8 @@
         await broadcast({
           packageId: state.packageId,
           type: 'cache-recovery-exhausted', loaded: state.cursor, stored,
-          failed: state.failed.length, total: state.total
+          failed: state.failed.length, total: state.total,
+          reasons: [...new Set(state.failed.map(entry => entry.reason).filter(Boolean))]
         });
         return;
       }
@@ -544,7 +554,6 @@
       reconciledPackages.add(activePackageId);
       if (options.forceRetry) {
         resetRetryableBudgets(state);
-        runtimeByPackage.delete(activePackageId);
       } else if (
         options.onlineTransition
         && !state.onlineRecoveryUsed
@@ -578,13 +587,6 @@
 
       if (work.length) {
         const result = await runWork(cache, progressUrl, state, work, currentRuntime);
-        if (result.cacheRuntimeBlocked) {
-          await broadcast({
-            type: 'cache-runtime-blocked', packageId: state.packageId,
-            loaded: state.cursor, stored: state.stored, failed: state.failed.length, total
-          });
-          return;
-        }
         if (result.storageBlocked) {
           state.phase = 'storage-blocked';
           await writeState(cache, progressUrl, state);

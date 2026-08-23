@@ -239,11 +239,28 @@ for (const variant of variants) {
       fetchImpl: async () => { fetches++; return new Response('jpeg', { status: 200 }); }
     });
     await h.start('nonquota-cache-put');
-    const state = await h.state('nonquota-cache-put');
+    let state = await h.state('nonquota-cache-put');
     assert.equal(fetches, 1);
-    assert.equal(state.phase, 'primary');
-    assert.deepEqual(state.failed, [], `${variant.name}: Cache API failures do not consume tile retry attempts`);
-    assert.equal(h.messages.at(-1).type, 'cache-runtime-blocked');
+    assert.equal(state.failed[0].attempts, 1,
+      `${variant.name}: a failed tile write enters bounded recovery instead of aborting the package`);
+    assert.equal(state.failed[0].reason, 'InvalidStateError');
+    assert.equal(h.messages.at(-1).type, 'cache-recovery-wait');
+    assert.equal(h.messages.filter(message => message.type === 'cache-progress').at(-1).concurrency, 3,
+      `${variant.name}: the first cache write failure halves write pressure`);
+
+    h.advance(1_000);
+    await h.start('nonquota-cache-put');
+    state = await h.state('nonquota-cache-put');
+    assert.equal(state.failed[0].attempts, 2);
+    assert.equal(h.messages.filter(message => message.type === 'cache-progress').at(-1).concurrency, 1,
+      `${variant.name}: repeated cache write failure reaches serial writes`);
+
+    h.advance(2_000);
+    await h.start('nonquota-cache-put', { forceRetry: true });
+    state = await h.state('nonquota-cache-put');
+    assert.equal(state.failed[0].attempts, 1, `${variant.name}: manual continuation resets the tile budget`);
+    assert.equal(h.messages.filter(message => message.type === 'cache-progress').at(-1).concurrency, 1,
+      `${variant.name}: manual continuation must not restore the failing write pressure`);
   }
 
   {
