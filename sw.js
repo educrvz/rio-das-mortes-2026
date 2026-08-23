@@ -1,6 +1,6 @@
 importScripts('./tile-manifest.js', './offline-recovery-engine.js');
 
-// Refresh the write-pressure recovery code without changing the imagery cache identity.
+// Refresh structural Cache API recovery without changing the imagery cache identity.
 
 const CACHE_NAME = 'rio-das-mortes-v13';
 const CACHE_PREFIX = 'rio-das-mortes-v';

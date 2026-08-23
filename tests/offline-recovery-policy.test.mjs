@@ -19,7 +19,9 @@ function harnessFor(variant, {
   const cache = {
     async addAll() {},
     async match(key) {
-      if (cacheMatchError) throw cacheMatchError;
+      const error = typeof cacheMatchError === 'function'
+        ? cacheMatchError(key) : cacheMatchError;
+      if (error) throw error;
       return store.get(new URL(typeof key === 'string' ? key : key.url, variant.scope).href)?.clone();
     },
     async put(key, response) {
@@ -85,8 +87,22 @@ for (const variant of variants) {
     await h.start('cache-runtime');
     assert.equal(JSON.stringify(h.messages.at(-1)), JSON.stringify({
       type: 'cache-runtime-blocked', packageId: 'cache-runtime',
-      loaded: 0, stored: 0, failed: 0, total: 1
+      loaded: 0, stored: 0, failed: 0, total: 1,
+      reason: 'InvalidStateError'
     }), `${variant.name}: Cache API failures become an explicit recoverable UI state`);
+  }
+
+  {
+    let failuresRemaining = 1;
+    const error = new Error('cache temporarily unavailable');
+    error.name = 'InvalidStateError';
+    const h = harnessFor(variant, {
+      cacheMatchError: () => failuresRemaining-- > 0 ? error : null
+    });
+    await h.start('transient-cache-runtime');
+    assert.equal(h.messages.at(-1).type, 'cache-complete',
+      `${variant.name}: a transient structural Cache API failure recovers without another button press`);
+    assert.equal(h.messages.some(message => message.type === 'cache-runtime-blocked'), false);
   }
 
   {

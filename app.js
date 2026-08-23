@@ -883,7 +883,9 @@ if ('serviceWorker' in navigator) {
         'O pacote publicado não confere com a lista de imagens. Aguarde uma atualização do mapa.';
     }
     if (event.data.type === 'cache-runtime-blocked') {
-      showManualRetry('O armazenamento offline pausou.', 'Continuar download');
+      const diagnostic = typeof event.data.reason === 'string' && event.data.reason
+        ? ` Código: ${event.data.reason}.` : '';
+      showManualRetry(`O armazenamento offline pausou.${diagnostic}`, 'Continuar download');
     }
     if (event.data.type === 'package-mismatch') {
       showDownloadBlocked('O app foi atualizado. Reinicie para usar o pacote de imagens atual.');
