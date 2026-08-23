@@ -42,7 +42,9 @@ function createHarness({ entries = [], fetchImpl, cacheNames = ['rio-das-mortes-
       addEventListener(type, handler) { handlers[type] = handler; }
     }
   };
-  vm.runInNewContext(fs.readFileSync(new URL('../sw.js', import.meta.url), 'utf8'), context);
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(new URL('../offline-recovery-engine.js', import.meta.url), 'utf8'), context);
+  vm.runInContext(fs.readFileSync(new URL('../sw.js', import.meta.url), 'utf8'), context);
   return { handlers, messages, store, deletedCaches, get globalMatches() { return globalMatches; } };
 }
 
@@ -86,10 +88,10 @@ function createHarness({ entries = [], fetchImpl, cacheNames = ['rio-das-mortes-
   assert.equal(harness.messages.at(-1).type, 'cache-complete');
 }
 
-async function send(harness, packageId) {
+async function send(harness, packageId, extra = {}) {
   let completion;
   harness.handlers.message({
-    data: { type: 'precache-tiles', packageId, expectedCount: 1 },
+    data: { type: 'precache-tiles', packageId, expectedCount: 1, ...extra },
     waitUntil(promise) { completion = promise; }
   });
   await completion;
@@ -147,7 +149,7 @@ function recoveryState(harness, packageId) {
   assert.equal(state.version, 1);
   assert.equal(state.failed.length, 1, 'repeated failure must keep one queue entry');
   assert.equal(state.failed[0].url, tile);
-  assert.equal(state.failed[0].attempts, 2);
+  assert.equal(state.failed[0].attempts, 1, 'a retry must wait for its persisted due time');
   assert.equal(Number.isFinite(state.failed[0].nextAttemptAt), true);
 }
 
@@ -172,9 +174,8 @@ function recoveryState(harness, packageId) {
   });
   await completion;
   const state = await recoveryState(harness, packageId);
-  assert.deepEqual(state.failed, [
-    { url: tileList[201], attempts: 3, nextAttemptAt: 7 }
-  ]);
+  assert.deepEqual(state.failed, [], 'the deduplicated due entry should receive bounded retry service');
+  assert.equal(state.cursor, 199);
 }
 
 for (const [label, invalidState] of [
@@ -241,8 +242,14 @@ async function activate(harness) {
     data: { type: 'precache-tiles', packageId: 'retry-package', expectedCount: 1 },
     waitUntil(promise) { retryCompletion = promise; }
   });
-  await Promise.all([firstCompletion, retryCompletion]);
-  assert.equal(fetches, 2, 'retry must abort the stalled request and run a new download');
+  assert.equal(fetches, 1, 'ordinary starts must coalesce without aborting active work');
+  let forcedCompletion;
+  harness.handlers.message({
+    data: { type: 'precache-tiles', packageId: 'retry-package', expectedCount: 1, forceRetry: true },
+    waitUntil(promise) { forcedCompletion = promise; }
+  });
+  await Promise.all([firstCompletion, retryCompletion, forcedCompletion]);
+  assert.equal(fetches, 2, 'explicit forceRetry must abort stalled work and start a fresh cycle');
   assert.equal(harness.messages.at(-1).type, 'cache-complete');
 }
 
@@ -298,9 +305,9 @@ async function activate(harness) {
     fetchImpl: async () => fail ? new Response('failed', { status: 503 }) : new Response('jpeg', { status: 200 })
   });
   await send(harness, 'retry');
-  assert.equal(harness.messages.at(-1).type, 'cache-incomplete');
+  assert.equal(harness.messages.at(-1).type, 'cache-recovery-wait');
   fail = false;
-  await send(harness, 'retry');
+  await send(harness, 'retry', { forceRetry: true });
   assert.equal(harness.messages.at(-1).type, 'cache-complete', 'retry must recover a failed package');
 }
 
