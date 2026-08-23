@@ -69,6 +69,51 @@ function harnessFor(variant, { tileList = ['tiles/17/1/0.jpg'], fetchImpl, quota
 
 for (const variant of variants) {
   {
+    const tileList = Array.from({ length: 45 }, (_, index) => `tiles/17/1/${index}.jpg`);
+    const h = harnessFor(variant, { tileList });
+    await h.start('continuous-counter');
+    const progress = h.messages.filter(message => message.type === 'cache-progress');
+    assert.equal(progress.length > 1, true);
+    assert.equal(progress.every(message => Number.isInteger(message.stored)), true,
+      `${variant.name}: every progress event includes the persisted stored count`);
+    assert.equal(progress.every((message, index) => index === 0 || message.stored >= progress[index - 1].stored), true,
+      `${variant.name}: the stored counter is monotonic while tiles are cached`);
+    assert.equal(progress.at(-1).stored, tileList.length);
+  }
+
+  {
+    const packageId = 'legacy-stored-count';
+    const tileList = Array.from({ length: 201 }, (_, index) => `tiles/17/1/${index}.jpg`);
+    const progress = `offline-package-${packageId}.progress`;
+    const saved = { version: 1, packageId, total: tileList.length, cursor: 0, phase: 'primary', failed: [] };
+    const h = harnessFor(variant, {
+      tileList,
+      entries: [[progress, JSON.stringify(saved)], [tileList[0], 'jpeg'], [tileList[1], 'jpeg']],
+      fetchImpl: async () => new Response('busy', { status: 503 })
+    });
+    await h.start(packageId);
+    const state = await h.state(packageId);
+    assert.equal(state.stored, 2, `${variant.name}: legacy state initializes stored from required cache membership`);
+    assert.equal(h.messages.filter(message => message.type === 'cache-progress')
+      .every(message => message.stored === 2), true,
+    `${variant.name}: attempts and failures do not increase stored`);
+  }
+
+  {
+    const packageId = 'evicted-stored-count';
+    const progress = `offline-package-${packageId}.progress`;
+    const saved = {
+      version: 1, packageId, total: 1, cursor: 1, stored: 1, phase: 'verifying', failed: [],
+      onlineRecoveryUsed: false,
+      circuit: { open: false, highFailureWindows: 0, probeIndex: 0, nextProbeAt: 0 }
+    };
+    const h = harnessFor(variant, { entries: [[progress, JSON.stringify(saved)]] });
+    await h.start(packageId);
+    assert.equal((await h.state(packageId)).stored, 0,
+      `${variant.name}: exact verification corrects a persisted count after eviction`);
+  }
+
+  {
     let fetches = 0;
     const h = harnessFor(variant, { fetchImpl: async () => { fetches++; return new Response('busy', { status: 503 }); } });
     await h.start('budget');

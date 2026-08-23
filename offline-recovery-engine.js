@@ -24,6 +24,7 @@
       packageId,
       total,
       cursor: 0,
+      stored: null,
       phase: 'primary',
       failed: [],
       onlineRecoveryUsed: false,
@@ -80,15 +81,29 @@
     }));
   }
 
-  async function readState(cache, progressUrl, packageId, total, tileUrls) {
+  async function initializeStored(cache, state, requiredUrls) {
+    if (Number.isInteger(state.stored) && state.stored >= 0 && state.stored <= state.total) return;
+    const requiredSet = new Set(requiredUrls);
+    const keys = await cache.keys();
+    state.stored = keys.reduce(
+      (count, request) => count + (requiredSet.has(request.url) ? 1 : 0), 0
+    );
+  }
+
+  async function readState(cache, progressUrl, packageId, total, tileUrls, requiredUrls) {
     const response = await cache.match(progressUrl);
-    if (!response) return freshState(packageId, total);
+    if (!response) {
+      const fresh = freshState(packageId, total);
+      await initializeStored(cache, fresh, requiredUrls);
+      return fresh;
+    }
     try {
       const saved = await response.json();
       const validCursor = Number.isInteger(saved.cursor) && saved.cursor >= 0 && saved.cursor <= total;
       if (saved.version === undefined && saved.total === total && validCursor) {
         const migrated = freshState(packageId, total);
         migrated.cursor = saved.cursor;
+        await initializeStored(cache, migrated, requiredUrls);
         await writeState(cache, progressUrl, migrated);
         return migrated;
       }
@@ -99,11 +114,14 @@
       saved.failed = normalizeFailures(saved.failed, new Set(tileUrls));
       saved.onlineRecoveryUsed = Boolean(saved.onlineRecoveryUsed);
       saved.circuit = normalizeCircuit(saved.circuit);
+      await initializeStored(cache, saved, requiredUrls);
       await writeState(cache, progressUrl, saved);
       return saved;
     } catch (error) {
       await cache.delete(progressUrl);
-      return freshState(packageId, total);
+      const fresh = freshState(packageId, total);
+      await initializeStored(cache, fresh, requiredUrls);
+      return fresh;
     }
   }
 
@@ -318,6 +336,7 @@
             if (isQuotaError(error)) return { storageBlocked: true, kind: 'storage', advance: false };
             throw error;
           }
+          state.stored = Math.min(state.total, state.stored + 1);
           clearFailure(state, item.url);
           return { kind: 'success', advance: true };
         }
@@ -356,7 +375,7 @@
           : state.cursor < state.total ? 'primary' : 'verifying';
         await writeState(cache, progressUrl, state);
         await broadcast({
-          type: 'cache-progress', loaded: state.cursor, failed: state.failed.length,
+          type: 'cache-progress', loaded: state.cursor, stored: state.stored, failed: state.failed.length,
           total: state.total, concurrency: runtime.concurrency
         });
       }
@@ -393,13 +412,8 @@
       return false;
     }
 
-    async function countStored(cache, requiredSet) {
-      const keys = await cache.keys();
-      return keys.reduce((count, request) => count + (requiredSet.has(request.url) ? 1 : 0), 0);
-    }
-
     async function reportBlockedOrWaiting(cache, progressUrl, state, requiredSet, runtime) {
-      const stored = await countStored(cache, requiredSet);
+      const stored = state.stored;
       const terminal = state.failed.filter(entry => entry.terminal);
       if (terminal.length) {
         state.phase = 'exhausted';
@@ -494,7 +508,9 @@
         }
       }
 
-      const state = await readState(cache, progressUrl, activePackageId, total, tileUrls);
+      const state = await readState(
+        cache, progressUrl, activePackageId, total, tileUrls, requiredUrls
+      );
       if (options.forceRetry) {
         resetRetryableBudgets(state);
         runtimeByPackage.delete(activePackageId);
@@ -533,7 +549,7 @@
           await writeState(cache, progressUrl, state);
           await broadcast({
             type: 'storage-blocked', loaded: state.cursor,
-            stored: await countStored(cache, requiredSet), failed: state.failed.length, total
+            stored: state.stored, failed: state.failed.length, total
           });
           return;
         }
@@ -546,7 +562,7 @@
       if (state.cursor < total) {
         await broadcast({
           type: 'cache-chunk-complete', loaded: state.cursor,
-          stored: await countStored(cache, requiredSet), failed: state.failed.length,
+          stored: state.stored, failed: state.failed.length,
           total, concurrency: currentRuntime.concurrency
         });
         return;
@@ -560,6 +576,7 @@
       await Promise.all(tileRequests.filter(request => !requiredSet.has(request.url))
         .map(request => cache.delete(request)));
       const missingUrls = requiredUrls.filter(url => !storedUrls.has(url));
+      state.stored = total - missingUrls.length;
       const missingRelative = new Set(missingUrls.map(url => relativeByUrl.get(url)));
       state.failed = state.failed.filter(entry => missingRelative.has(entry.url));
       const untrackedMissing = [...missingRelative].filter(url => !failureFor(state, url));
