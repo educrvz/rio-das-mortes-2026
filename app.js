@@ -588,19 +588,20 @@ function closeInfo() {
 }
 
 function updateProgress(loaded, total, stored, failed = 0, reused = 0) {
-  const pct = Math.round((loaded / total) * 100);
+  const previousLoaded = lastProgress.total === total ? lastProgress.loaded : 0;
+  const visibleLoaded = Math.max(previousLoaded, Math.min(loaded, total));
+  const pct = Math.round((visibleLoaded / total) * 100);
   document.getElementById('progress-fill').style.width = pct + '%';
   document.getElementById('progress-bar').setAttribute('aria-valuenow', String(pct));
   if (failed > 0) {
     document.getElementById('progress-text').textContent =
-      `${pct}% — ${failed.toLocaleString('pt-BR')} imagens precisam ser repetidas`;
-  } else if (reused > 0 && reused === loaded) {
-    document.getElementById('progress-text').textContent = `${pct}% — Já baixado!`;
+      `${pct}% — ${visibleLoaded.toLocaleString('pt-BR')} de ${total.toLocaleString('pt-BR')} · ${failed.toLocaleString('pt-BR')} para repetir`;
   } else {
-    document.getElementById('progress-text').textContent = `${pct}% — ${loaded.toLocaleString()} de ${total.toLocaleString()} imagens`;
+    document.getElementById('progress-text').textContent =
+      `${pct}% — ${visibleLoaded.toLocaleString('pt-BR')} de ${total.toLocaleString('pt-BR')} imagens`;
   }
 
-  lastProgress = { loaded, total, timestamp: Date.now() };
+  lastProgress = { loaded: visibleLoaded, total, timestamp: Date.now() };
   resetStallDetection();
 }
 
@@ -613,7 +614,7 @@ function resetStallDetection() {
     if (pct < 100) {
       document.getElementById('resume-btn').style.display = 'inline-block';
     }
-  }, 20000);
+  }, 8000);
 }
 
 function resumeDownload() {
@@ -628,6 +629,16 @@ function hideLoading() {
   overlay.style.transition = 'opacity 0.5s';
   overlay.style.opacity = '0';
   setTimeout(() => overlay.style.display = 'none', 500);
+}
+
+function showDownloadBlocked(message) {
+  if (stallTimer) clearTimeout(stallTimer);
+  offlineDownloadActive = false;
+  document.getElementById('progress-text').textContent = message;
+  const button = document.getElementById('resume-btn');
+  button.textContent = 'Tentar novamente';
+  button.style.display = 'inline-block';
+  button.onclick = () => window.location.reload();
 }
 
 async function prepareOfflineStorage(requiredBytes) {
@@ -677,7 +688,10 @@ async function startTilePreCache(attempt = 0) {
   }
   const requiredBytes = typeof TILE_PACKAGE_META !== 'undefined' ? TILE_PACKAGE_META.bytes : 0;
   if (!(await prepareOfflineStorage(requiredBytes))) return;
-  document.getElementById('progress-text').textContent = `0% — 0 de ${total.toLocaleString('pt-BR')} imagens`;
+  if (lastProgress.total !== total || lastProgress.loaded === 0) {
+    document.getElementById('progress-text').textContent =
+      `0% — 0 de ${total.toLocaleString('pt-BR')} imagens`;
+  }
   resetStallDetection();
   offlineDownloadActive = true;
 
@@ -739,15 +753,11 @@ if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('controllerchange', waitForExpectedController);
     }
   }).catch(() => {
-    hideLoading();
+    showDownloadBlocked('Não foi possível iniciar o download offline.');
   });
 } else {
-  hideLoading();
+  showDownloadBlocked('Este navegador não oferece o modo offline necessário.');
 }
-requestAnimationFrame(() => {
-  document.getElementById('loading-overlay').classList.add('background-download');
-});
-
 map.on('movestart', () => {
   if (watchId !== null) {
     autoCenter = false;

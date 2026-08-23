@@ -203,6 +203,17 @@ def validate_shell():
     if "unpkg.com" in (ROOT / "index.html").read_text():
         fail("index.html still depends on the Leaflet CDN")
     index_html = (ROOT / "index.html").read_text()
+    installer_html = (ROOT / "instrucoes.html").read_text()
+    app_js = (ROOT / "app.js").read_text()
+    style_css = (ROOT / "style.css").read_text()
+    if 'id="map"' in installer_html or "Android" not in installer_html or "iPhone" not in installer_html:
+        fail("INPE installer must be a map-free Android/iPhone landing page")
+    if "34.994 de 34.994" not in installer_html:
+        fail("INPE installer must explain the complete image counter")
+    if "background-download" in app_js or "background-download" in style_css:
+        fail("download overlay must not collapse and expose the map")
+    if "Math.max(previousLoaded" not in app_js or "}, 8000);" not in app_js:
+        fail("download counter or stalled-download recovery is missing")
     route_data = load_javascript_json(ROOT / "route-data.js", "const ROUTE_DATA = ")
     poi_types = {poi["type"] for poi in route_data["pois"]}
     filter_types = set(re.findall(r"togglePOILayer\('([^']+)'\)", index_html))
@@ -215,6 +226,14 @@ def validate_shell():
     print(f"PWA shell: {len(paths)} cached local assets · local Leaflet · manifest icons present")
 
     google_root = ROOT / "google"
+    google_index = (google_root / "index.html").read_text()
+    google_installer = (google_root / "instrucoes.html").read_text()
+    if 'id="map"' in google_installer or "Android" not in google_installer or "iPhone" not in google_installer:
+        fail("Google installer must be a map-free Android/iPhone landing page")
+    if "34.994 de 34.994" not in google_installer:
+        fail("Google installer must explain the complete image counter")
+    if "GOOGLE · PESQUISA" not in google_index:
+        fail("Google download screen must identify the imagery edition")
     google_sw = (google_root / "sw.js").read_text()
     google_shell_match = re.search(r"const APP_SHELL = \[(.*?)\];", google_sw, re.DOTALL)
     if not google_shell_match:
@@ -236,6 +255,7 @@ def validate_shell():
     if "rio-das-mortes-user-notes-v1" not in (ROOT / "app.js").read_text():
         fail("INPE PWA notes storage key is missing")
     print(f"Google PWA shell: {len(google_paths)} cached assets · distinct install identity")
+    print("Install-first UX: map-free landing · full-screen monotonic download · 8 s recovery")
 
 
 def validate_imagery_provenance():

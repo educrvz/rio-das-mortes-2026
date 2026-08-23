@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const scope = 'https://example.test/rio-das-mortes/';
 const tile = 'tiles/17/1/2.jpg';
 
-function createHarness({ entries = [], fetchImpl, cacheNames = ['rio-das-mortes-v12'], tileList = [tile] } = {}) {
+function createHarness({ entries = [], fetchImpl, cacheNames = ['rio-das-mortes-v13'], tileList = [tile] } = {}) {
   const handlers = {};
   const messages = [];
   const deletedCaches = [];
@@ -102,13 +102,43 @@ async function activate(harness) {
 }
 
 {
+  let fetches = 0;
+  let markStarted;
+  const firstFetchStarted = new Promise(resolve => { markStarted = resolve; });
   const harness = createHarness({
-    cacheNames: ['rio-das-mortes-v11', 'rio-das-mortes-v12', 'rio-das-mortes-google-v2']
+    fetchImpl: async (_url, options = {}) => {
+      fetches++;
+      if (fetches > 1) return new Response('jpeg', { status: 200 });
+      markStarted();
+      return new Promise((resolve, reject) => {
+        options.signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
+      });
+    }
+  });
+  let firstCompletion;
+  harness.handlers.message({
+    data: { type: 'precache-tiles', packageId: 'retry-package', expectedCount: 1 },
+    waitUntil(promise) { firstCompletion = promise; }
+  });
+  await firstFetchStarted;
+  let retryCompletion;
+  harness.handlers.message({
+    data: { type: 'precache-tiles', packageId: 'retry-package', expectedCount: 1 },
+    waitUntil(promise) { retryCompletion = promise; }
+  });
+  await Promise.all([firstCompletion, retryCompletion]);
+  assert.equal(fetches, 2, 'retry must abort the stalled request and run a new download');
+  assert.equal(harness.messages.at(-1).type, 'cache-complete');
+}
+
+{
+  const harness = createHarness({
+    cacheNames: ['rio-das-mortes-v12', 'rio-das-mortes-v13', 'rio-das-mortes-google-v3']
   });
   await activate(harness);
   assert.deepEqual(harness.deletedCaches, [], 'activation must preserve the previous complete package');
   await send(harness, 'upgrade-package');
-  assert.deepEqual(harness.deletedCaches, ['rio-das-mortes-v11']);
+  assert.deepEqual(harness.deletedCaches, ['rio-das-mortes-v12']);
 }
 
 {

@@ -2,10 +2,10 @@
 
 Guia de campo instalável (PWA) para a expedição de canoa entre Vila Berrante e Novo Santo Antônio.
 
-- App: https://educrvz.github.io/rio-das-mortes-2026/
-- Instalação: https://educrvz.github.io/rio-das-mortes-2026/instrucoes.html
-- Versão Google: https://educrvz.github.io/rio-das-mortes-2026/google/
-- Instalação Google: https://educrvz.github.io/rio-das-mortes-2026/google/instrucoes.html
+- Começar pela versão INPE: https://educrvz.github.io/rio-das-mortes-2026/instrucoes.html
+- Começar pela versão Google: https://educrvz.github.io/rio-das-mortes-2026/google/instrucoes.html
+- Mapa INPE: https://educrvz.github.io/rio-das-mortes-2026/
+- Mapa Google: https://educrvz.github.io/rio-das-mortes-2026/google/
 
 ## Estado atual
 
@@ -23,6 +23,7 @@ Guia de campo instalável (PWA) para a expedição de canoa entre Vila Berrante 
 - Versão INPE: 34.994 tiles / 199,9 MB, derivados de cenas coloridas CBERS-4A/WPM de 2 m publicadas pelo INPE sob CC BY 4.0.
 - Versão Google de pesquisa: os mesmos 34.994 tiles / 547,3 MB, replicando o método offline usado nos apps Pindaíba e Carinhanha.
 - As duas versões têm manifestos, service workers, caches, ícones e anotações locais independentes; podem ser instaladas lado a lado.
+- Nas duas versões, a página inicial de instalação não mostra o mapa. Ao iniciar, uma tela dedicada acompanha continuamente as 34.994 imagens e só revela o mapa ao terminar; se o progresso parar, o botão de continuação reaparece após 8 segundos.
 - Cenas e URLs de origem fixadas em `data/mortes-2026-imagery.json`; pipeline reproduzível em `build-inpe-tiles.py`.
 
 ## Gerar dados
@@ -46,8 +47,9 @@ Abra `http://localhost:8080/instrucoes.html`. O app requer HTTP/HTTPS para regis
 1. Instalar a dependência do validador: `pip install Pillow==12.3.0`.
 2. Executar `python3 generate-route-data.py` e confirmar que `route-data.js` não mudou.
 3. Executar `python3 validate-release.py`.
-4. Executar `node --check app.js`, `node --check sw.js` e `node --check route-data.js`.
-5. Instalar e testar no aparelho real com GPS e modo avião antes da viagem.
+4. Executar `node --check app.js`, `node --check sw.js`, `node --check google/sw.js` e `node --check route-data.js`.
+5. Executar `node tests/install-first-flow.test.mjs`, `node tests/offline-worker.test.mjs` e `node tests/google-offline-worker.test.mjs`.
+6. Instalar e testar no aparelho real com GPS e modo avião antes da viagem.
 
 Para reproduzir o pacote INPE, instale `requirements-imagery.txt` e execute `python3 build-inpe-tiles.py`. O processo retoma tiles ausentes; `--repair-blank` substitui tiles inteiramente sem dados e `--repair-edge` recompõe bordas pretas usando cenas sobrepostas. Para reproduzir a versão Google de pesquisa pelo método histórico, execute `python3 download-google-tiles.py`.
 

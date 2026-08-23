@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const scope = 'https://example.test/rio-das-mortes/google/';
 const tile = 'tiles/17/1/2.jpg';
 
-function createHarness({ entries = [], fetchImpl, cacheNames = ['rio-das-mortes-google-v2'], tileList = [tile] } = {}) {
+function createHarness({ entries = [], fetchImpl, cacheNames = ['rio-das-mortes-google-v3'], tileList = [tile] } = {}) {
   const handlers = {};
   const messages = [];
   const deletedCaches = [];
@@ -103,12 +103,12 @@ async function activate(harness) {
 
 {
   const harness = createHarness({
-    cacheNames: ['rio-das-mortes-v12', 'rio-das-mortes-google-v1', 'rio-das-mortes-google-v2']
+    cacheNames: ['rio-das-mortes-v13', 'rio-das-mortes-google-v2', 'rio-das-mortes-google-v3']
   });
   await activate(harness);
   assert.deepEqual(harness.deletedCaches, [], 'activation must preserve the previous complete package');
   await send(harness, 'upgrade-package');
-  assert.deepEqual(harness.deletedCaches, ['rio-das-mortes-google-v1']);
+  assert.deepEqual(harness.deletedCaches, ['rio-das-mortes-google-v2']);
 }
 
 {
