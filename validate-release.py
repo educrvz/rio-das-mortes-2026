@@ -291,7 +291,7 @@ def validate_offline_recovery_contract():
         "STATE_VERSION",
         "MAX_ATTEMPTS = 4",
         "INITIAL_CONCURRENCY = 6",
-        "MIN_CONCURRENCY = 2",
+        "MIN_CONCURRENCY = 1",
         "MAX_CONCURRENCY = 12",
         "PROBE_DELAYS = [5_000, 15_000, 45_000]",
         "cache-recovery-wait",
