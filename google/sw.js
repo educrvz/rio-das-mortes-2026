@@ -1,5 +1,7 @@
 importScripts('./tile-manifest.js', '../offline-recovery-engine.js');
 
+// Refresh the cached app shell without changing the imagery cache identity.
+
 const CACHE_NAME = 'rio-das-mortes-google-v3';
 const CACHE_PREFIX = 'rio-das-mortes-google-';
 

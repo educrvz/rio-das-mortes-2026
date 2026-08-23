@@ -15,6 +15,7 @@ let speedSamples = [];
 let lastNoteEditorOpenedAt = 0;
 let lastProgress = { stored: 0, total: 0 };
 let stallTimer = null;
+let stallRecoveryAttempts = 0;
 let recoveryTimer = null;
 let storagePrepared = false;
 let offlineDownloadActive = false;
@@ -653,7 +654,7 @@ function updateProgress(total, stored = lastProgress.stored, failed = 0) {
 
   lastProgress = { stored: visibleStored, total };
   persistStoredProgress();
-  resetStallDetection();
+  resetStallDetection(true);
 }
 
 function clearRecoveryTimer() {
@@ -677,19 +678,27 @@ function showManualRetry(message, label = 'Tentar novamente') {
   button.onclick = resumeDownload;
 }
 
-function resetStallDetection() {
+function resetStallDetection(progressObserved = false) {
   if (stallTimer) clearTimeout(stallTimer);
+  if (progressObserved) stallRecoveryAttempts = 0;
   hideManualRetry();
 
   stallTimer = setTimeout(() => {
     if (offlineDownloadActive && lastProgress.total > 0) {
-      document.getElementById('progress-text').textContent =
-        'Aguardando a rede… a recuperação continuará automaticamente.';
+      if (stallRecoveryAttempts < 2) {
+        stallRecoveryAttempts += 1;
+        document.getElementById('progress-text').textContent =
+          'O download pausou. Retomando automaticamente…';
+        startTilePreCache({ forceRetry: true });
+      } else {
+        showManualRetry('O download continua pausado.', 'Continuar download');
+      }
     }
   }, 8000);
 }
 
 function resumeDownload() {
+  stallRecoveryAttempts = 0;
   hideManualRetry();
   document.getElementById('progress-text').textContent = 'Retomando download...';
   startTilePreCache({ forceRetry: true });
@@ -872,7 +881,7 @@ if ('serviceWorker' in navigator) {
         'O pacote publicado não confere com a lista de imagens. Aguarde uma atualização do mapa.';
     }
     if (event.data.type === 'cache-runtime-blocked') {
-      showDownloadBlocked('O armazenamento offline do navegador falhou. Reinicie o app para tentar novamente.');
+      showManualRetry('O armazenamento offline pausou.', 'Continuar download');
     }
     if (event.data.type === 'package-mismatch') {
       showDownloadBlocked('O app foi atualizado. Reinicie para usar o pacote de imagens atual.');
