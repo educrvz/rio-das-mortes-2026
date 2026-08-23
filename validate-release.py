@@ -11,6 +11,13 @@ from PIL import Image, ImageStat
 from tile_plan import ROOT, deg2tile, get_needed_tiles, haversine_km, load_data
 
 
+EXPECTED_TILE_COUNT = 34_994
+EXPECTED_CACHE_IDENTITIES = {
+    "INPE": ("sw.js", "rio-das-mortes-v13", "rio-das-mortes-v"),
+    "Google": ("google/sw.js", "rio-das-mortes-google-v3", "rio-das-mortes-google-"),
+}
+
+
 def fail(message):
     print(f"ERROR: {message}", file=sys.stderr)
     raise SystemExit(1)
@@ -101,6 +108,8 @@ def validate_tiles():
     planned_by_zoom = get_needed_tiles(river, roads)
     planned = {tile for tiles in planned_by_zoom.values() for tile in tiles}
     package_meta, manifest = parse_tile_manifest()
+    if len(manifest) != EXPECTED_TILE_COUNT:
+        fail(f"INPE tile manifest must contain {EXPECTED_TILE_COUNT:,} tiles")
     if manifest != planned:
         fail(
             f"tile manifest differs from plan: {len(planned - manifest)} missing, "
@@ -146,6 +155,8 @@ def validate_google_tiles():
     planned_by_zoom = get_needed_tiles(river, roads)
     planned = {tile for tiles in planned_by_zoom.values() for tile in tiles}
     package_meta, manifest = parse_tile_manifest(ROOT / "google" / "tile-manifest.js")
+    if len(manifest) != EXPECTED_TILE_COUNT:
+        fail(f"Google tile manifest must contain {EXPECTED_TILE_COUNT:,} tiles")
     if manifest != planned:
         fail(
             f"Google tile manifest differs from plan: {len(planned - manifest)} missing, "
@@ -212,8 +223,20 @@ def validate_shell():
         fail("INPE installer must explain the complete image counter")
     if "background-download" in app_js or "background-download" in style_css:
         fail("download overlay must not collapse and expose the map")
-    if "Math.max(previousLoaded" not in app_js or "}, 8000);" not in app_js:
+    if "Math.max(previousStored" not in app_js or "}, 8000);" not in app_js:
         fail("download counter or stalled-download recovery is missing")
+    required_install_contract = [
+        "cache-recovery-wait",
+        "cache-recovery-exhausted",
+        "storage-blocked",
+        "cache-runtime-blocked",
+        "package-mismatch",
+        "package-integrity-blocked",
+        "offlinePackageReady = true",
+        "setTimeout(hideLoading, 1500)",
+    ]
+    if any(token not in app_js for token in required_install_contract):
+        fail("install-first recovery or completion gate is incomplete")
     route_data = load_javascript_json(ROOT / "route-data.js", "const ROUTE_DATA = ")
     poi_types = {poi["type"] for poi in route_data["pois"]}
     filter_types = set(re.findall(r"togglePOILayer\('([^']+)'\)", index_html))
@@ -255,7 +278,58 @@ def validate_shell():
     if "rio-das-mortes-user-notes-v1" not in (ROOT / "app.js").read_text():
         fail("INPE PWA notes storage key is missing")
     print(f"Google PWA shell: {len(google_paths)} cached assets · distinct install identity")
-    print("Install-first UX: map-free landing · full-screen monotonic download · 8 s recovery")
+    print("Install-first UX: map-free landing · full-screen confirmed-tile download · automatic recovery")
+
+
+def validate_offline_recovery_contract():
+    engine_path = ROOT / "offline-recovery-engine.js"
+    if not engine_path.exists() or not engine_path.is_file():
+        fail("shared offline recovery engine is missing")
+    engine = engine_path.read_text()
+    required_engine_tokens = [
+        "self.installOfflineRecovery",
+        "STATE_VERSION",
+        "MAX_ATTEMPTS = 4",
+        "INITIAL_CONCURRENCY = 6",
+        "MIN_CONCURRENCY = 2",
+        "MAX_CONCURRENCY = 12",
+        "PROBE_DELAYS = [5_000, 15_000, 45_000]",
+        "cache-recovery-wait",
+        "cache-recovery-exhausted",
+        "storage-blocked",
+        "cache-runtime-blocked",
+        "package-mismatch",
+        "package-integrity-blocked",
+    ]
+    if any(token not in engine for token in required_engine_tokens):
+        fail("shared offline recovery engine is missing a required runtime contract")
+
+    for edition, (relative_path, cache_name, cache_prefix) in EXPECTED_CACHE_IDENTITIES.items():
+        worker = (ROOT / relative_path).read_text()
+        engine_import = "./offline-recovery-engine.js" if edition == "INPE" else "../offline-recovery-engine.js"
+        if engine_import not in worker:
+            fail(f"{edition} worker does not import the shared offline recovery engine")
+        if f"const CACHE_NAME = '{cache_name}';" not in worker:
+            fail(f"{edition} cache identity changed and would force an imagery redownload")
+        if f"const CACHE_PREFIX = '{cache_prefix}';" not in worker:
+            fail(f"{edition} cache cleanup prefix changed")
+        required_worker_tokens = [
+            "self.installOfflineRecovery({",
+            "cacheName: CACHE_NAME",
+            "cachePrefix: CACHE_PREFIX",
+            "expectedPackageId:",
+            "getTileList",
+        ]
+        if any(token not in worker for token in required_worker_tokens):
+            fail(f"{edition} worker is not wired to the shared recovery contract")
+
+    policy_test = ROOT / "tests" / "offline-recovery-policy.test.mjs"
+    if not policy_test.exists():
+        fail("cross-edition offline recovery policy test is missing")
+    policy_source = policy_test.read_text()
+    if "{ name: 'INPE'" not in policy_source or "{ name: 'Google'" not in policy_source:
+        fail("offline recovery policy test must cover both editions")
+    print("Offline recovery: shared engine · root/Google contract parity · unchanged cache identities")
 
 
 def validate_imagery_provenance():
@@ -282,6 +356,7 @@ def main():
     validate_tiles()
     validate_google_tiles()
     validate_shell()
+    validate_offline_recovery_contract()
     print("Production release validation passed")
 
 

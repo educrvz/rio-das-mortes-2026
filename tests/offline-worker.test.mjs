@@ -10,11 +10,14 @@ function createHarness({ entries = [], fetchImpl, cacheNames = ['rio-das-mortes-
   const messages = [];
   const deletedCaches = [];
   let globalMatches = 0;
-  const store = new Map(entries.map(key => [new URL(key, scope).href, new Response('cached')]));
+  const store = new Map(entries.map(entry => {
+    const [key, body = 'cached'] = Array.isArray(entry) ? entry : [entry];
+    return [new URL(key, scope).href, new Response(body)];
+  }));
   const cache = {
     async addAll() {},
-    async match(key) { return store.get(new URL(typeof key === 'string' ? key : key.url, scope).href); },
-    async put(key, value) { store.set(new URL(typeof key === 'string' ? key : key.url, scope).href, value); },
+    async match(key) { return store.get(new URL(typeof key === 'string' ? key : key.url, scope).href)?.clone(); },
+    async put(key, value) { store.set(new URL(typeof key === 'string' ? key : key.url, scope).href, value.clone()); },
     async delete(key) { return store.delete(new URL(typeof key === 'string' ? key : key.url, scope).href); },
     async keys() { return [...store.keys()].map(url => new Request(url)); }
   };
@@ -39,7 +42,9 @@ function createHarness({ entries = [], fetchImpl, cacheNames = ['rio-das-mortes-
       addEventListener(type, handler) { handlers[type] = handler; }
     }
   };
-  vm.runInNewContext(fs.readFileSync(new URL('../sw.js', import.meta.url), 'utf8'), context);
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(new URL('../offline-recovery-engine.js', import.meta.url), 'utf8'), context);
+  vm.runInContext(fs.readFileSync(new URL('../sw.js', import.meta.url), 'utf8'), context);
   return { handlers, messages, store, deletedCaches, get globalMatches() { return globalMatches; } };
 }
 
@@ -73,26 +78,137 @@ function createHarness({ entries = [], fetchImpl, cacheNames = ['rio-das-mortes-
   });
   await completion;
   assert.equal(harness.messages.at(-1).loaded, 0, 'final verification must rewind to an evicted tile');
-  for (const expectedType of ['cache-chunk-complete', 'cache-complete']) {
-    await new Promise(resolve => setTimeout(resolve, 0));
-    harness.handlers.message({
-      data: { type: 'precache-tiles', packageId: 'chunked', expectedCount: tileList.length },
-      waitUntil(promise) { completion = promise; }
-    });
-    await completion;
-    assert.equal(harness.messages.at(-1).type, expectedType);
-  }
+  await new Promise(resolve => setTimeout(resolve, 0));
+  harness.handlers.message({
+    data: { type: 'precache-tiles', packageId: 'chunked', expectedCount: tileList.length },
+    waitUntil(promise) { completion = promise; }
+  });
+  await completion;
   assert.equal(harness.messages.at(-1).loaded, 201);
   assert.equal(harness.messages.at(-1).type, 'cache-complete');
 }
 
-async function send(harness, packageId) {
+async function send(harness, packageId, extra = {}) {
   let completion;
   harness.handlers.message({
-    data: { type: 'precache-tiles', packageId, expectedCount: 1 },
+    data: { type: 'precache-tiles', packageId, expectedCount: 1, ...extra },
     waitUntil(promise) { completion = promise; }
   });
   await completion;
+}
+
+function recoveryState(harness, packageId) {
+  const key = new URL(`offline-package-${packageId}.progress`, scope).href;
+  const response = harness.store.get(key);
+  return response ? response.clone().json() : null;
+}
+
+{
+  let fetches = 0;
+  const packageId = 'already-complete';
+  const harness = createHarness({
+    entries: [`offline-package-${packageId}.ready`, tile],
+    fetchImpl: async () => { fetches++; return new Response('jpeg', { status: 200 }); }
+  });
+  await send(harness, packageId);
+  assert.equal(fetches, 0, 'an exact ready package must not schedule download work');
+  assert.deepEqual(harness.messages.map(message => message.type), ['cache-complete']);
+}
+
+{
+  const packageId = 'legacy-state';
+  const progress = `offline-package-${packageId}.progress`;
+  const tileList = Array.from({ length: 202 }, (_, index) => `tiles/17/1/${index}.jpg`);
+  const harness = createHarness({
+    entries: [[progress, JSON.stringify({ cursor: 1, total: tileList.length })], tileList[0]],
+    tileList
+  });
+  let completion;
+  harness.handlers.message({
+    data: { type: 'precache-tiles', packageId, expectedCount: tileList.length },
+    waitUntil(promise) { completion = promise; }
+  });
+  await completion;
+  const state = await recoveryState(harness, packageId);
+  assert.equal(state.version, 1, 'cursor-only progress must migrate to the versioned schema');
+  assert.equal(state.packageId, packageId);
+  assert.equal(state.total, tileList.length);
+  assert.equal(state.cursor, 201);
+  assert.equal(state.phase, 'primary');
+  assert.deepEqual(state.failed, []);
+}
+
+{
+  const packageId = 'deduplicated-failure';
+  const harness = createHarness({
+    fetchImpl: async () => new Response('failed', { status: 503 })
+  });
+  await send(harness, packageId);
+  await send(harness, packageId);
+  const state = await recoveryState(harness, packageId);
+  assert.equal(state.version, 1);
+  assert.equal(state.failed.length, 1, 'repeated failure must keep one queue entry');
+  assert.equal(state.failed[0].url, tile);
+  assert.equal(state.failed[0].attempts, 1, 'a retry must wait for its persisted due time');
+  assert.equal(Number.isFinite(state.failed[0].nextAttemptAt), true);
+}
+
+{
+  const packageId = 'normalize-duplicates';
+  const progress = `offline-package-${packageId}.progress`;
+  const tileList = Array.from({ length: 202 }, (_, index) => `tiles/17/1/${index}.jpg`);
+  const duplicated = {
+    version: 1, packageId, total: tileList.length, cursor: 0, phase: 'primary',
+    failed: [
+      { url: tileList[201], attempts: 1, nextAttemptAt: 5 },
+      { url: tileList[201], attempts: 3, nextAttemptAt: 7 }
+    ]
+  };
+  const harness = createHarness({
+    entries: [[progress, JSON.stringify(duplicated)]], tileList
+  });
+  let completion;
+  harness.handlers.message({
+    data: { type: 'precache-tiles', packageId, expectedCount: tileList.length },
+    waitUntil(promise) { completion = promise; }
+  });
+  await completion;
+  const state = await recoveryState(harness, packageId);
+  assert.deepEqual(state.failed, [], 'the deduplicated due entry should receive bounded retry service');
+  assert.equal(state.cursor, 199);
+}
+
+for (const [label, invalidState] of [
+  ['wrong package', { version: 1, packageId: 'other', total: 1, cursor: 1, phase: 'primary', failed: [{ url: 'tiles/17/9/9.jpg', attempts: 9, nextAttemptAt: 1 }] }],
+  ['unsupported schema', { version: 999, packageId: 'safe-rebuild', total: 1, cursor: 1, phase: 'primary', failed: [] }],
+  ['invalid cursor', { version: 1, packageId: 'safe-rebuild', total: 1, cursor: 99, phase: 'primary', failed: [] }]
+]) {
+  const packageId = 'safe-rebuild';
+  const progress = `offline-package-${packageId}.progress`;
+  const harness = createHarness({
+    entries: [[progress, JSON.stringify(invalidState)]],
+    fetchImpl: async () => new Response('failed', { status: 503 })
+  });
+  await send(harness, packageId);
+  const state = await recoveryState(harness, packageId);
+  assert.equal(state.packageId, packageId, `${label} state must be rebuilt for the active package`);
+  assert.equal(state.cursor, 1);
+  assert.deepEqual(state.failed.map(entry => entry.url), [tile]);
+  assert.equal(state.failed[0].attempts, 1);
+}
+
+{
+  const packageId = 'corrupt-state';
+  const progress = `offline-package-${packageId}.progress`;
+  const harness = createHarness({
+    entries: [[progress, '{not-json']],
+    fetchImpl: async () => new Response('failed', { status: 503 })
+  });
+  await send(harness, packageId);
+  const state = await recoveryState(harness, packageId);
+  assert.equal(state.version, 1);
+  assert.equal(state.packageId, packageId);
+  assert.equal(state.failed.length, 1);
 }
 
 async function activate(harness) {
@@ -126,8 +242,14 @@ async function activate(harness) {
     data: { type: 'precache-tiles', packageId: 'retry-package', expectedCount: 1 },
     waitUntil(promise) { retryCompletion = promise; }
   });
-  await Promise.all([firstCompletion, retryCompletion]);
-  assert.equal(fetches, 2, 'retry must abort the stalled request and run a new download');
+  assert.equal(fetches, 1, 'ordinary starts must coalesce without aborting active work');
+  let forcedCompletion;
+  harness.handlers.message({
+    data: { type: 'precache-tiles', packageId: 'retry-package', expectedCount: 1, forceRetry: true },
+    waitUntil(promise) { forcedCompletion = promise; }
+  });
+  await Promise.all([firstCompletion, retryCompletion, forcedCompletion]);
+  assert.equal(fetches, 2, 'explicit forceRetry must abort stalled work and start a fresh cycle');
   assert.equal(harness.messages.at(-1).type, 'cache-complete');
 }
 
@@ -183,9 +305,9 @@ async function activate(harness) {
     fetchImpl: async () => fail ? new Response('failed', { status: 503 }) : new Response('jpeg', { status: 200 })
   });
   await send(harness, 'retry');
-  assert.equal(harness.messages.at(-1).type, 'cache-incomplete');
+  assert.equal(harness.messages.at(-1).type, 'cache-recovery-wait');
   fail = false;
-  await send(harness, 'retry');
+  await send(harness, 'retry', { forceRetry: true });
   assert.equal(harness.messages.at(-1).type, 'cache-complete', 'retry must recover a failed package');
 }
 
