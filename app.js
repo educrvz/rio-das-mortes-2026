@@ -18,7 +18,9 @@ let stallTimer = null;
 let storagePrepared = false;
 let offlineDownloadActive = false;
 
-const NOTES_STORAGE_KEY = 'rio-das-mortes-user-notes-v1';
+const APP_CONFIG = window.MORTES_APP_CONFIG || {};
+
+const NOTES_STORAGE_KEY = APP_CONFIG.notesStorageKey || 'rio-das-mortes-user-notes-v1';
 
 const TRANSPARENT_TILE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
@@ -231,9 +233,13 @@ function togglePOIDrawer() {
 }
 
 function showImageryStatus() {
+  if (APP_CONFIG.imageryInfoHtml) {
+    showInfo(APP_CONFIG.imageryInfoHtml);
+    return;
+  }
   showInfo(
     '<h3>Imagens offline incluídas</h3>' +
-    '<p>O pacote cobre o corredor do rio até zoom 17 e as cinco estradas logísticas até zoom 16.</p>' +
+    '<p>O pacote cobre o corredor do rio e as cinco estradas logísticas até zoom 17.</p>' +
     '<p>Fonte: imagens coloridas de 2 m do satélite CBERS-4A/WPM, publicadas pelo INPE. Cenas selecionadas entre agosto de 2025 e agosto de 2026.</p>' +
     '<p><a href="https://data.inpe.br/bdc/stac/v1/collections/CB4A-WPM-PCA-FUSED-1" target="_blank" rel="noopener">Coleção oficial do INPE</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">Licença CC BY 4.0</a></p>'
   );
@@ -389,7 +395,7 @@ function openNoteEditor(latlng) {
     `<p>${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}</p>` +
     `<label for="note-text">O que há neste ponto?</label>` +
     `<textarea id="note-text" maxlength="240" placeholder="Ex.: Acampamento do dia 3"></textarea>` +
-    `<button onclick="saveNote(${latlng.lat}, ${latlng.lng})">Salvar anotação</button>`
+    `<button type="button" class="primary-action" onclick="saveNote(${latlng.lat}, ${latlng.lng})">Salvar anotação</button>`
   );
   setTimeout(() => document.getElementById('note-text')?.focus(), 50);
 }
@@ -688,6 +694,9 @@ window.addEventListener('beforeunload', event => {
   event.returnValue = '';
 });
 
+initMap();
+configureAvailableLayers();
+
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', event => {
     if (event.data.type === 'cache-progress') {
@@ -702,6 +711,10 @@ if ('serviceWorker' in navigator) {
       document.getElementById('progress-bar').setAttribute('aria-valuenow', '100');
       setTimeout(hideLoading, 1500);
     }
+    if (event.data.type === 'cache-chunk-complete') {
+      updateProgress(event.data.loaded, event.data.total, event.data.stored, event.data.failed, event.data.reused);
+      setTimeout(startTilePreCache, 100);
+    }
     if (event.data.type === 'cache-incomplete') {
       offlineDownloadActive = false;
       if (stallTimer) clearTimeout(stallTimer);
@@ -711,13 +724,19 @@ if ('serviceWorker' in navigator) {
       document.getElementById('resume-btn').style.display = 'inline-block';
     }
   });
-  navigator.serviceWorker.register('sw.js').then(reg => {
-    if (navigator.serviceWorker.controller) {
+  const workerUrl = new URL(APP_CONFIG.serviceWorkerUrl || 'sw.js', window.location.href).href;
+  navigator.serviceWorker.register(workerUrl).then(() => {
+    const expectedControllerIsActive = () =>
+      navigator.serviceWorker.controller?.scriptURL === workerUrl;
+    if (expectedControllerIsActive()) {
       startTilePreCache();
     } else {
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
+      const waitForExpectedController = () => {
+        if (!expectedControllerIsActive()) return;
+        navigator.serviceWorker.removeEventListener('controllerchange', waitForExpectedController);
         startTilePreCache();
-      });
+      };
+      navigator.serviceWorker.addEventListener('controllerchange', waitForExpectedController);
     }
   }).catch(() => {
     hideLoading();
@@ -725,9 +744,6 @@ if ('serviceWorker' in navigator) {
 } else {
   hideLoading();
 }
-
-initMap();
-configureAvailableLayers();
 requestAnimationFrame(() => {
   document.getElementById('loading-overlay').classList.add('background-download');
 });

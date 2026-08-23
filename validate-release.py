@@ -41,8 +41,8 @@ def validate_route_data():
     print("Route data: 91.66 km · 93 markers · 55 POIs · 5 roads · 3 hospitals")
 
 
-def parse_tile_manifest():
-    text = (ROOT / "tile-manifest.js").read_text()
+def parse_tile_manifest(path=ROOT / "tile-manifest.js"):
+    text = path.read_text()
     meta_match = re.search(r"const TILE_PACKAGE_META = (\{.*?\});\s*\n", text, re.DOTALL)
     match = re.search(r"const TILE_INDEX = (\{.*?\});\s*\n", text, re.DOTALL)
     if not meta_match or not match:
@@ -58,7 +58,9 @@ def parse_tile_manifest():
     return meta, tiles
 
 
-def validate_centerline_coverage(lines, zoom, manifest, spacing_km=0.25):
+def validate_centerline_coverage(
+    lines, zoom, manifest, tiles_root=ROOT / "tiles", spacing_km=0.25
+):
     images = {}
     for line_number, points in enumerate(lines, 1):
         for start, end in zip(points, points[1:]):
@@ -73,7 +75,7 @@ def validate_centerline_coverage(lines, zoom, manifest, spacing_km=0.25):
                         f"line {line_number} has no z{zoom} imagery at "
                         f"{lat:.6f},{lon:.6f}"
                     )
-                path = ROOT / "tiles" / str(zoom) / str(x) / f"{y}.jpg"
+                path = tiles_root / str(zoom) / str(x) / f"{y}.jpg"
                 if path not in images:
                     images[path] = Image.open(path).convert("RGB")
                 world_x = (lon + 180.0) / 360.0 * (2**zoom)
@@ -135,8 +137,57 @@ def validate_tiles():
     if not re.fullmatch(r"[0-9a-f]{20}", package_meta.get("id", "")):
         fail("TILE_PACKAGE_META id is missing or invalid")
     validate_centerline_coverage([river], 17, manifest)
-    validate_centerline_coverage(roads, 16, manifest)
+    validate_centerline_coverage(roads, 17, manifest)
     print(f"Offline imagery: {len(files):,} JPEG tiles · {total_size / 1024 / 1024:.1f} MB")
+
+
+def validate_google_tiles():
+    river, roads = load_data()
+    planned_by_zoom = get_needed_tiles(river, roads)
+    planned = {tile for tiles in planned_by_zoom.values() for tile in tiles}
+    package_meta, manifest = parse_tile_manifest(ROOT / "google" / "tile-manifest.js")
+    if manifest != planned:
+        fail(
+            f"Google tile manifest differs from plan: {len(planned - manifest)} missing, "
+            f"{len(manifest - planned)} unexpected"
+        )
+
+    files = set()
+    total_size = 0
+    tiles_root = ROOT / "google" / "tiles"
+    for path in tiles_root.glob("*/*/*.jpg"):
+        try:
+            tile = (int(path.parent.parent.name), int(path.parent.name), int(path.stem))
+        except ValueError:
+            fail(f"invalid Google tile path: {path.relative_to(ROOT)}")
+        size = path.stat().st_size
+        if size < 100 or path.read_bytes()[:2] != b"\xff\xd8":
+            fail(f"invalid Google JPEG tile: {path.relative_to(ROOT)}")
+        with Image.open(path) as image:
+            if image.size != (256, 256):
+                fail(f"unexpected Google tile dimensions: {path.relative_to(ROOT)}")
+            stats = ImageStat.Stat(image.convert("RGB").resize((16, 16)))
+            if sum(stats.mean) / 3 < 2:
+                fail(f"near-black Google no-data tile: {path.relative_to(ROOT)}")
+        files.add(tile)
+        total_size += size
+    if files != manifest:
+        fail(
+            f"Google tile files differ from manifest: {len(manifest - files)} missing, "
+            f"{len(files - manifest)} unexpected"
+        )
+    if package_meta.get("count") != len(manifest):
+        fail("Google TILE_PACKAGE_META count differs from manifest")
+    if package_meta.get("bytes") != total_size:
+        fail("Google TILE_PACKAGE_META bytes differs from tile files")
+    if package_meta.get("source") != "Google Satellite":
+        fail("Google imagery package source is missing")
+    validate_centerline_coverage([river], 17, manifest, tiles_root)
+    validate_centerline_coverage(roads, 17, manifest, tiles_root)
+    print(
+        f"Google research imagery: {len(files):,} JPEG tiles · "
+        f"{total_size / 1024 / 1024:.1f} MB"
+    )
 
 
 def validate_shell():
@@ -163,6 +214,29 @@ def validate_shell():
             fail(f"manifest icon does not exist: {icon['src']}")
     print(f"PWA shell: {len(paths)} cached local assets · local Leaflet · manifest icons present")
 
+    google_root = ROOT / "google"
+    google_sw = (google_root / "sw.js").read_text()
+    google_shell_match = re.search(r"const APP_SHELL = \[(.*?)\];", google_sw, re.DOTALL)
+    if not google_shell_match:
+        fail("Google service-worker app shell is not parseable")
+    google_paths = re.findall(r"['\"](\.{1,2}/[^'\"]*)['\"]", google_shell_match.group(1))
+    for item in google_paths:
+        relative = item.split("?", 1)[0]
+        if not (google_root / relative).resolve().exists():
+            fail(f"Google service-worker asset does not exist: {item}")
+    google_manifest = json.loads((google_root / "manifest.json").read_text())
+    if google_manifest.get("id") == manifest.get("id"):
+        fail("Google PWA must have a distinct manifest id")
+    for icon in google_manifest.get("icons", []):
+        if not (google_root / icon["src"]).exists():
+            fail(f"Google manifest icon does not exist: {icon['src']}")
+    google_config = (google_root / "google-config.js").read_text()
+    if "rio-das-mortes-google-user-notes-v1" not in google_config:
+        fail("Google PWA must use an independent notes storage key")
+    if "rio-das-mortes-user-notes-v1" not in (ROOT / "app.js").read_text():
+        fail("INPE PWA notes storage key is missing")
+    print(f"Google PWA shell: {len(google_paths)} cached assets · distinct install identity")
+
 
 def validate_imagery_provenance():
     data = json.loads((ROOT / "data" / "mortes-2026-imagery.json").read_text())
@@ -186,6 +260,7 @@ def main():
     validate_imagery_provenance()
     validate_public_provenance()
     validate_tiles()
+    validate_google_tiles()
     validate_shell()
     print("Production release validation passed")
 

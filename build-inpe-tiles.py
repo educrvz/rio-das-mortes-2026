@@ -109,6 +109,8 @@ def main():
         help="Courtesy delay between tiles; keep this non-zero for the public INPE service.",
     )
     parser.add_argument("--limit", type=int, help="Render only the first N missing tiles")
+    parser.add_argument("--shard-count", type=int, default=1, help="Split pending work across N processes")
+    parser.add_argument("--shard-index", type=int, default=0, help="Zero-based shard handled by this process")
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument(
         "--repair-blank",
@@ -126,14 +128,17 @@ def main():
         help="Re-render overlap tiles containing measurable black no-data pixels.",
     )
     args = parser.parse_args()
+    if args.shard_count < 1 or not 0 <= args.shard_index < args.shard_count:
+        parser.error("--shard-index must be between 0 and --shard-count - 1")
 
     imagery = json.loads(IMAGERY_DATA.read_text())
     scenes = imagery["scenes"]
     river, roads = load_data()
     planned = get_needed_tiles(river, roads)
     all_tiles = [tile for zoom in sorted(planned) for tile in sorted(planned[zoom])]
+    selected_tiles = all_tiles[args.shard_index :: args.shard_count]
     pending = []
-    for z, x, y in all_tiles:
+    for z, x, y in selected_tiles:
         output = TILES_DIR / str(z) / str(x) / f"{y}.jpg"
         needs_repair = False
         if args.repair_blank and output.exists():
@@ -163,8 +168,11 @@ def main():
         f"{imagery['license']} · {len(scenes)} pinned scenes"
     )
     if not pending:
-        count = write_manifest(planned)
-        print(f"Nothing to render; manifest contains {count:,} tiles")
+        if args.shard_count == 1 and not args.limit:
+            count = write_manifest(planned)
+            print(f"Nothing to render; manifest contains {count:,} tiles")
+        else:
+            print("Nothing to render for this shard")
         return
 
     started = time.time()
@@ -195,7 +203,7 @@ def main():
             print(f"FAILED {tile}: {error}")
         raise SystemExit(f"Tile build incomplete: {len(failures)} failures")
 
-    if not args.limit:
+    if not args.limit and args.shard_count == 1:
         count = write_manifest(planned)
         print(f"Wrote tile-manifest.js with {count:,} tiles")
     total_size = sum(path.stat().st_size for path in TILES_DIR.rglob("*.jpg"))

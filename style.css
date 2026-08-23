@@ -121,19 +121,20 @@ button:focus-visible, a:focus-visible, textarea:focus-visible {
 }
 
 #info-panel {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 1001;
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 1003;
   background: rgba(23,25,22,.97); color: var(--paper); padding: 24px 20px;
   padding-bottom: max(20px, env(safe-area-inset-bottom)); border-radius: 18px 18px 0 0;
   border-top: 2px solid var(--ochre); max-height: 90vh; max-height: 90dvh; overflow-y: auto;
   overscroll-behavior: contain; box-shadow: var(--panel-shadow); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
 #info-panel::before { content: ""; display: block; width: 40px; height: 3px; margin: -12px auto 18px; background: #62665b; border-radius: 2px; }
 #info-panel h3 { font-family: Georgia, "Times New Roman", serif; font-size: 21px; line-height: 1.2; margin-bottom: 10px; }
 #info-panel p { font-size: 14px; line-height: 1.45; color: #cbc7b7; margin: 6px 0; }
 #info-panel a { color: var(--river-bright) !important; text-underline-offset: 2px; }
 #info-panel label { display: block; color: var(--muted); font-size: 12px; margin: 14px 0 6px; }
-#info-panel textarea { width: 100%; min-height: 100px; resize: vertical; padding: 12px; border: 1px solid #55594f; border-radius: 5px; background: #10120f; color: var(--paper); font: 16px/1.4 "Avenir Next", sans-serif; }
-#info-panel button { margin-top: 12px; min-height: 46px; padding: 11px 22px; background: var(--ochre); color: var(--ink); border: 0; border-radius: 5px; font-size: 15px; font-weight: 900; cursor: pointer; width: 100%; }
-#info-close-btn { position: sticky; bottom: 0; }
+#info-panel textarea { display: block; width: 100%; min-height: 108px; resize: vertical; padding: 13px 14px; border: 1px solid #55594f; border-radius: 6px; background: #10120f; color: var(--paper); font: 16px/1.4 "Avenir Next", sans-serif; }
+#info-panel button { display: block; width: 100%; min-height: 48px; margin-top: 12px; padding: 12px 22px; background: var(--ochre); color: var(--ink); border: 1px solid var(--ochre); border-radius: 6px; font-size: 15px; font-weight: 900; line-height: 1.2; cursor: pointer; }
+#info-close-btn { position: sticky; bottom: 0; background: var(--ink-soft) !important; color: var(--paper) !important; border-color: #55594f !important; }
 #info-panel .secondary-action { background: var(--ink-soft); color: var(--paper); }
 #info-panel .danger-action { background: #9c382e; color: #fff; }
 #info-panel .note-card { margin: 10px 0; padding: 11px; background: rgba(243,232,206,.07); border-radius: 5px; border-left: 3px solid var(--warning); }

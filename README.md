@@ -4,6 +4,8 @@ Guia de campo instalável (PWA) para a expedição de canoa entre Vila Berrante 
 
 - App: https://educrvz.github.io/rio-das-mortes-2026/
 - Instalação: https://educrvz.github.io/rio-das-mortes-2026/instrucoes.html
+- Versão Google: https://educrvz.github.io/rio-das-mortes-2026/google/
+- Instalação Google: https://educrvz.github.io/rio-das-mortes-2026/google/instrucoes.html
 
 ## Estado atual
 
@@ -17,8 +19,10 @@ Guia de campo instalável (PWA) para a expedição de canoa entre Vila Berrante 
 - Os POIs anteriores do KML e as pré-seleções visuais foram removidos; a planilha é a única fonte de POIs.
 - Cinco estradas logísticas, 5.390 vértices e aproximadamente 682,6 km.
 - Três referências oficiais para acidentes com animais peçonhentos: Novo Santo Antônio, São Félix do Araguaia e Ribeirão Cascalheira.
-- Cobertura offline concluída: rio até zoom 17 e estradas até zoom 16.
-- Imagens offline: 16.685 tiles / 101,9 MB, derivados de cenas coloridas CBERS-4A/WPM de 2 m publicadas pelo INPE sob CC BY 4.0.
+- Cobertura offline concluída: rio e estradas até zoom 17.
+- Versão INPE: 34.994 tiles / 199,9 MB, derivados de cenas coloridas CBERS-4A/WPM de 2 m publicadas pelo INPE sob CC BY 4.0.
+- Versão Google de pesquisa: os mesmos 34.994 tiles / 547,3 MB, replicando o método offline usado nos apps Pindaíba e Carinhanha.
+- As duas versões têm manifestos, service workers, caches, ícones e anotações locais independentes; podem ser instaladas lado a lado.
 - Cenas e URLs de origem fixadas em `data/mortes-2026-imagery.json`; pipeline reproduzível em `build-inpe-tiles.py`.
 
 ## Gerar dados
@@ -45,7 +49,7 @@ Abra `http://localhost:8080/instrucoes.html`. O app requer HTTP/HTTPS para regis
 4. Executar `node --check app.js`, `node --check sw.js` e `node --check route-data.js`.
 5. Instalar e testar no aparelho real com GPS e modo avião antes da viagem.
 
-Para reproduzir o pacote de imagens, instale `requirements-imagery.txt` e execute `python3 build-inpe-tiles.py`. O processo retoma tiles ausentes; `--repair-blank` substitui tiles inteiramente sem dados e `--repair-edge` recompõe bordas pretas usando cenas sobrepostas.
+Para reproduzir o pacote INPE, instale `requirements-imagery.txt` e execute `python3 build-inpe-tiles.py`. O processo retoma tiles ausentes; `--repair-blank` substitui tiles inteiramente sem dados e `--repair-edge` recompõe bordas pretas usando cenas sobrepostas. Para reproduzir a versão Google de pesquisa pelo método histórico, execute `python3 download-google-tiles.py`.
 
 ## Imagens e licença
 

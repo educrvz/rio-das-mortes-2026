@@ -1,0 +1,17 @@
+{
+  "name": "Rio das Mortes 2026 · Google",
+  "short_name": "Mortes Google",
+  "description": "Versão de pesquisa do guia de campo do Rio das Mortes com imagens Google Satellite",
+  "id": "./google-research",
+  "start_url": "./index.html",
+  "scope": "./",
+  "lang": "pt-BR",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#171916",
+  "theme_color": "#171916",
+  "icons": [
+    { "src": "rio-mortes-google-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "rio-mortes-google-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

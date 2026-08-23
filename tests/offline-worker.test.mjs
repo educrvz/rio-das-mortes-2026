@@ -5,9 +5,11 @@ import vm from 'node:vm';
 const scope = 'https://example.test/rio-das-mortes/';
 const tile = 'tiles/17/1/2.jpg';
 
-function createHarness({ entries = [], fetchImpl } = {}) {
+function createHarness({ entries = [], fetchImpl, cacheNames = ['rio-das-mortes-v12'], tileList = [tile] } = {}) {
   const handlers = {};
   const messages = [];
+  const deletedCaches = [];
+  let globalMatches = 0;
   const store = new Map(entries.map(key => [new URL(key, scope).href, new Response('cached')]));
   const cache = {
     async addAll() {},
@@ -19,13 +21,13 @@ function createHarness({ entries = [], fetchImpl } = {}) {
   const context = {
     AbortController, URL, Request, Response, Promise, setTimeout, clearTimeout,
     importScripts() {},
-    getTileList: () => [tile],
+    getTileList: () => tileList,
     fetch: fetchImpl || (async () => new Response('jpeg', { status: 200 })),
     caches: {
       async open() { return cache; },
-      async keys() { return ['rio-das-mortes-v10']; },
-      async delete() { return true; },
-      async match(key) { return cache.match(key); }
+      async keys() { return cacheNames; },
+      async delete(name) { deletedCaches.push(name); return true; },
+      async match(key) { globalMatches++; return new Response('old-cache'); }
     },
     self: {
       registration: { scope },
@@ -38,7 +40,50 @@ function createHarness({ entries = [], fetchImpl } = {}) {
     }
   };
   vm.runInNewContext(fs.readFileSync(new URL('../sw.js', import.meta.url), 'utf8'), context);
-  return { handlers, messages, store };
+  return { handlers, messages, store, deletedCaches, get globalMatches() { return globalMatches; } };
+}
+
+{
+  const harness = createHarness({ entries: ['app.js'] });
+  let responsePromise;
+  harness.handlers.fetch({
+    request: new Request(new URL('app.js', scope)),
+    respondWith(promise) { responsePromise = promise; }
+  });
+  const response = await responsePromise;
+  assert.equal(await response.text(), 'cached');
+  assert.equal(harness.globalMatches, 0, 'shell assets must come from the current cache only');
+}
+
+{
+  const tileList = Array.from({ length: 201 }, (_, index) => `tiles/17/1/${index}.jpg`);
+  const harness = createHarness({ tileList });
+  let completion;
+  harness.handlers.message({
+    data: { type: 'precache-tiles', packageId: 'chunked', expectedCount: tileList.length },
+    waitUntil(promise) { completion = promise; }
+  });
+  await completion;
+  assert.equal(harness.messages.at(-1).type, 'cache-chunk-complete');
+  harness.store.delete(new URL(tileList[0], scope).href);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  harness.handlers.message({
+    data: { type: 'precache-tiles', packageId: 'chunked', expectedCount: tileList.length },
+    waitUntil(promise) { completion = promise; }
+  });
+  await completion;
+  assert.equal(harness.messages.at(-1).loaded, 0, 'final verification must rewind to an evicted tile');
+  for (const expectedType of ['cache-chunk-complete', 'cache-complete']) {
+    await new Promise(resolve => setTimeout(resolve, 0));
+    harness.handlers.message({
+      data: { type: 'precache-tiles', packageId: 'chunked', expectedCount: tileList.length },
+      waitUntil(promise) { completion = promise; }
+    });
+    await completion;
+    assert.equal(harness.messages.at(-1).type, expectedType);
+  }
+  assert.equal(harness.messages.at(-1).loaded, 201);
+  assert.equal(harness.messages.at(-1).type, 'cache-complete');
 }
 
 async function send(harness, packageId) {
@@ -48,6 +93,22 @@ async function send(harness, packageId) {
     waitUntil(promise) { completion = promise; }
   });
   await completion;
+}
+
+async function activate(harness) {
+  let completion;
+  harness.handlers.activate({ waitUntil(promise) { completion = promise; } });
+  await completion;
+}
+
+{
+  const harness = createHarness({
+    cacheNames: ['rio-das-mortes-v11', 'rio-das-mortes-v12', 'rio-das-mortes-google-v2']
+  });
+  await activate(harness);
+  assert.deepEqual(harness.deletedCaches, [], 'activation must preserve the previous complete package');
+  await send(harness, 'upgrade-package');
+  assert.deepEqual(harness.deletedCaches, ['rio-das-mortes-v11']);
 }
 
 {
