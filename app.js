@@ -13,14 +13,20 @@ let noteLayers = [];
 let noteCreationActive = false;
 let speedSamples = [];
 let lastNoteEditorOpenedAt = 0;
-let lastProgress = { loaded: 0, total: 0, timestamp: 0 };
+let lastProgress = { loaded: 0, stored: 0, total: 0, timestamp: 0 };
 let stallTimer = null;
+let recoveryTimer = null;
 let storagePrepared = false;
 let offlineDownloadActive = false;
+let wentOffline = false;
+let terminalPackageBlocked = false;
+let offlinePackageReady = false;
+let currentPackageId = null;
 
 const APP_CONFIG = window.MORTES_APP_CONFIG || {};
 
 const NOTES_STORAGE_KEY = APP_CONFIG.notesStorageKey || 'rio-das-mortes-user-notes-v1';
+const OFFLINE_PROGRESS_KEY_PREFIX = `${NOTES_STORAGE_KEY}-offline-progress`;
 
 const TRANSPARENT_TILE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
@@ -587,44 +593,120 @@ function closeInfo() {
   document.getElementById('info-panel').style.display = 'none';
 }
 
-function updateProgress(loaded, total, stored, failed = 0, reused = 0) {
-  const previousLoaded = lastProgress.total === total ? lastProgress.loaded : 0;
-  const visibleLoaded = Math.max(previousLoaded, Math.min(loaded, total));
-  const pct = Math.round((visibleLoaded / total) * 100);
+function packageProgressKey(packageId) {
+  return `${OFFLINE_PROGRESS_KEY_PREFIX}-${encodeURIComponent(packageId)}`;
+}
+
+function hydrateStoredProgress(packageId, total) {
+  if (currentPackageId === packageId) return;
+  const packageChanged = currentPackageId !== null;
+  currentPackageId = packageId;
+  if (packageChanged) {
+    storagePrepared = false;
+    terminalPackageBlocked = false;
+    offlinePackageReady = false;
+  }
+  try {
+    const activeKey = `${OFFLINE_PROGRESS_KEY_PREFIX}-active`;
+    const previousPackageId = localStorage.getItem(activeKey);
+    if (previousPackageId && previousPackageId !== packageId) {
+      localStorage.removeItem(packageProgressKey(previousPackageId));
+    }
+    localStorage.setItem(activeKey, packageId);
+    const saved = JSON.parse(localStorage.getItem(packageProgressKey(packageId)) || 'null');
+    if (
+      saved?.packageId === packageId && saved.total === total
+      && Number.isInteger(saved.stored) && saved.stored >= 0 && saved.stored <= total
+    ) {
+      lastProgress = { loaded: saved.stored, stored: saved.stored, total, timestamp: Date.now() };
+      return;
+    }
+    if (saved) localStorage.removeItem(packageProgressKey(packageId));
+  } catch (error) {}
+}
+
+function persistStoredProgress() {
+  if (!currentPackageId || !lastProgress.total) return;
+  try {
+    localStorage.setItem(packageProgressKey(currentPackageId), JSON.stringify({
+      packageId: currentPackageId,
+      total: lastProgress.total,
+      stored: lastProgress.stored
+    }));
+  } catch (error) {}
+}
+
+function updateProgress(loaded, total, stored = lastProgress.stored, failed = 0, reused = 0) {
+  if (!total) return;
+  const previousStored = lastProgress.total === total ? lastProgress.stored : 0;
+  const visibleStored = Math.max(previousStored, Math.min(stored, total));
+  const pct = Math.round((visibleStored / total) * 100);
   document.getElementById('progress-fill').style.width = pct + '%';
   document.getElementById('progress-bar').setAttribute('aria-valuenow', String(pct));
   if (failed > 0) {
     document.getElementById('progress-text').textContent =
-      `${pct}% — ${visibleLoaded.toLocaleString('pt-BR')} de ${total.toLocaleString('pt-BR')} · ${failed.toLocaleString('pt-BR')} para repetir`;
+      `${pct}% — ${visibleStored.toLocaleString('pt-BR')} de ${total.toLocaleString('pt-BR')} · ${failed.toLocaleString('pt-BR')} em recuperação`;
   } else {
     document.getElementById('progress-text').textContent =
-      `${pct}% — ${visibleLoaded.toLocaleString('pt-BR')} de ${total.toLocaleString('pt-BR')} imagens`;
+      `${pct}% — ${visibleStored.toLocaleString('pt-BR')} de ${total.toLocaleString('pt-BR')} imagens`;
   }
 
-  lastProgress = { loaded: visibleLoaded, total, timestamp: Date.now() };
+  lastProgress = { loaded: visibleStored, stored: visibleStored, total, timestamp: Date.now() };
+  persistStoredProgress();
   resetStallDetection();
+}
+
+function clearRecoveryTimer() {
+  if (recoveryTimer) clearTimeout(recoveryTimer);
+  recoveryTimer = null;
+}
+
+function hideManualRetry() {
+  const button = document.getElementById('resume-btn');
+  button.style.display = 'none';
+  button.onclick = null;
+}
+
+function showManualRetry(message, label = 'Tentar novamente') {
+  clearRecoveryTimer();
+  offlineDownloadActive = false;
+  document.getElementById('progress-text').textContent = message;
+  const button = document.getElementById('resume-btn');
+  button.textContent = label;
+  button.style.display = 'inline-block';
+  button.onclick = resumeDownload;
 }
 
 function resetStallDetection() {
   if (stallTimer) clearTimeout(stallTimer);
-  document.getElementById('resume-btn').style.display = 'none';
+  hideManualRetry();
 
   stallTimer = setTimeout(() => {
-    const pct = Math.round((lastProgress.loaded / lastProgress.total) * 100);
-    if (pct < 100) {
-      document.getElementById('resume-btn').style.display = 'inline-block';
+    if (offlineDownloadActive && lastProgress.total > 0) {
+      document.getElementById('progress-text').textContent =
+        'Aguardando a rede… a recuperação continuará automaticamente.';
     }
   }, 8000);
 }
 
 function resumeDownload() {
-  document.getElementById('resume-btn').style.display = 'none';
+  hideManualRetry();
   document.getElementById('progress-text').textContent = 'Retomando download...';
-  startTilePreCache();
+  startTilePreCache({ forceRetry: true });
+}
+
+function scheduleRecovery(nextRetryAt) {
+  clearRecoveryTimer();
+  const delay = Math.max(0, Number(nextRetryAt || 0) - Date.now());
+  recoveryTimer = setTimeout(() => {
+    recoveryTimer = null;
+    startTilePreCache();
+  }, delay);
 }
 
 function hideLoading() {
   if (stallTimer) clearTimeout(stallTimer);
+  clearRecoveryTimer();
   const overlay = document.getElementById('loading-overlay');
   overlay.style.transition = 'opacity 0.5s';
   overlay.style.opacity = '0';
@@ -633,15 +715,16 @@ function hideLoading() {
 
 function showDownloadBlocked(message) {
   if (stallTimer) clearTimeout(stallTimer);
+  clearRecoveryTimer();
   offlineDownloadActive = false;
   document.getElementById('progress-text').textContent = message;
   const button = document.getElementById('resume-btn');
-  button.textContent = 'Tentar novamente';
+  button.textContent = 'Reiniciar e tentar novamente';
   button.style.display = 'inline-block';
   button.onclick = () => window.location.reload();
 }
 
-async function prepareOfflineStorage(requiredBytes) {
+async function prepareOfflineStorage(requiredBytes, total) {
   if (storagePrepared) return true;
   if (navigator.storage?.persist) {
     try { await navigator.storage.persist(); } catch (error) {}
@@ -650,11 +733,14 @@ async function prepareOfflineStorage(requiredBytes) {
     try {
       const estimate = await navigator.storage.estimate();
       const available = (estimate.quota || 0) - (estimate.usage || 0);
-      if (estimate.quota && available < requiredBytes * 1.25) {
-        const neededMb = Math.ceil((requiredBytes * 1.25 - available) / 1024 / 1024);
+      const confirmedStored = lastProgress.total === total
+        && Number.isFinite(lastProgress.stored) ? lastProgress.stored : 0;
+      const remainingBytes = Math.ceil(requiredBytes * (1 - confirmedStored / total));
+      if (estimate.quota && available < remainingBytes * 1.25) {
+        const neededMb = Math.ceil((remainingBytes * 1.25 - available) / 1024 / 1024);
         document.getElementById('progress-text').textContent =
           `Faltam aproximadamente ${neededMb.toLocaleString('pt-BR')} MB livres no navegador.`;
-        document.getElementById('resume-btn').style.display = 'inline-block';
+        storagePrepared = false;
         return false;
       }
     } catch (error) {}
@@ -663,7 +749,7 @@ async function prepareOfflineStorage(requiredBytes) {
   return true;
 }
 
-async function startTilePreCache(attempt = 0) {
+async function startTilePreCache({ forceRetry = false, onlineTransition = false } = {}) {
   if (!navigator.serviceWorker.controller) {
     document.getElementById('progress-text').textContent = 'Ativando o modo offline…';
     return;
@@ -687,18 +773,28 @@ async function startTilePreCache(attempt = 0) {
       `Preparando ${total.toLocaleString('pt-BR')} imagens offline.`;
   }
   const requiredBytes = typeof TILE_PACKAGE_META !== 'undefined' ? TILE_PACKAGE_META.bytes : 0;
-  if (!(await prepareOfflineStorage(requiredBytes))) return;
+  const packageId = typeof TILE_PACKAGE_META !== 'undefined' ? TILE_PACKAGE_META.id : 'current';
+  hydrateStoredProgress(packageId, total);
+  if ((terminalPackageBlocked || offlinePackageReady) && !forceRetry) return;
+  if (!(await prepareOfflineStorage(requiredBytes, total))) {
+    storagePrepared = false;
+    showManualRetry('Libere espaço no navegador e tente novamente.', 'Verificar espaço e tentar novamente');
+    return;
+  }
   if (lastProgress.total !== total || lastProgress.loaded === 0) {
     document.getElementById('progress-text').textContent =
       `0% — 0 de ${total.toLocaleString('pt-BR')} imagens`;
   }
+  hideManualRetry();
   resetStallDetection();
   offlineDownloadActive = true;
 
   navigator.serviceWorker.controller.postMessage({
     type: 'precache-tiles',
-    packageId: typeof TILE_PACKAGE_META !== 'undefined' ? TILE_PACKAGE_META.id : 'current',
-    expectedCount: total
+    packageId,
+    expectedCount: total,
+    forceRetry: forceRetry === true,
+    onlineTransition: onlineTransition === true
   });
 }
 
@@ -714,12 +810,19 @@ configureAvailableLayers();
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', event => {
     if (event.data.type === 'cache-progress') {
-      updateProgress(event.data.loaded, event.data.total, event.data.stored, event.data.failed, event.data.reused);
+      updateProgress(
+        event.data.loaded, event.data.total, event.data.stored,
+        event.data.failed, event.data.reused
+      );
     }
     if (event.data.type === 'cache-complete') {
+      terminalPackageBlocked = false;
+      offlinePackageReady = true;
       offlineDownloadActive = false;
       if (stallTimer) clearTimeout(stallTimer);
-      document.getElementById('resume-btn').style.display = 'none';
+      clearRecoveryTimer();
+      hideManualRetry();
+      updateProgress(event.data.loaded, event.data.total, event.data.stored, 0, event.data.reused);
       document.getElementById('progress-text').textContent = 'Mapa offline pronto ✓';
       document.getElementById('progress-fill').style.width = '100%';
       document.getElementById('progress-bar').setAttribute('aria-valuenow', '100');
@@ -727,15 +830,44 @@ if ('serviceWorker' in navigator) {
     }
     if (event.data.type === 'cache-chunk-complete') {
       updateProgress(event.data.loaded, event.data.total, event.data.stored, event.data.failed, event.data.reused);
-      setTimeout(startTilePreCache, 100);
+      scheduleRecovery(Date.now() + 100);
     }
-    if (event.data.type === 'cache-incomplete') {
+    if (event.data.type === 'cache-recovery-wait') {
+      updateProgress(event.data.loaded, event.data.total, event.data.stored, event.data.failed);
+      hideManualRetry();
+      offlineDownloadActive = true;
+      document.getElementById('progress-text').textContent =
+        'Aguardando a rede… a recuperação continuará automaticamente.';
+      scheduleRecovery(event.data.nextRetryAt);
+    }
+    if (event.data.type === 'cache-recovery-exhausted') {
+      updateProgress(event.data.loaded, event.data.total, event.data.stored, event.data.failed);
+      showManualRetry(
+        `${(event.data.failed || 0).toLocaleString('pt-BR')} imagens ainda precisam de recuperação.`
+      );
+    }
+    if (event.data.type === 'storage-blocked') {
+      storagePrepared = false;
+      updateProgress(event.data.loaded, event.data.total, event.data.stored, event.data.failed);
+      showManualRetry('O navegador não tem espaço suficiente para concluir o mapa.', 'Verificar espaço e tentar novamente');
+    }
+    if (event.data.type === 'package-integrity-blocked') {
+      terminalPackageBlocked = true;
+      updateProgress(event.data.loaded, event.data.total, event.data.stored, event.data.failed);
       offlineDownloadActive = false;
       if (stallTimer) clearTimeout(stallTimer);
-      const failed = event.data.failed || (event.data.total - event.data.stored);
+      clearRecoveryTimer();
+      hideManualRetry();
       document.getElementById('progress-text').textContent =
-        `${failed.toLocaleString('pt-BR')} imagens não baixaram. Toque para repetir.`;
-      document.getElementById('resume-btn').style.display = 'inline-block';
+        'Arquivos do pacote não estão disponíveis na publicação. Aguarde uma atualização do mapa.';
+    }
+    if (event.data.type === 'cache-incomplete') {
+      terminalPackageBlocked = true;
+      offlineDownloadActive = false;
+      clearRecoveryTimer();
+      hideManualRetry();
+      document.getElementById('progress-text').textContent =
+        'O pacote publicado não confere com a lista de imagens. Aguarde uma atualização do mapa.';
     }
   });
   const workerUrl = new URL(APP_CONFIG.serviceWorkerUrl || 'sw.js', window.location.href).href;
@@ -758,6 +890,20 @@ if ('serviceWorker' in navigator) {
 } else {
   showDownloadBlocked('Este navegador não oferece o modo offline necessário.');
 }
+
+window.addEventListener('offline', () => {
+  wentOffline = true;
+});
+
+window.addEventListener('online', () => {
+  if (!wentOffline) return;
+  wentOffline = false;
+  startTilePreCache({ onlineTransition: true });
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) startTilePreCache();
+});
 map.on('movestart', () => {
   if (watchId !== null) {
     autoCenter = false;
