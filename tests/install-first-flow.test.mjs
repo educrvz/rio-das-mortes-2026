@@ -24,11 +24,10 @@ assert.doesNotMatch(rootWorker, /activePrecache && activePackageId/);
 assert.doesNotMatch(googleWorker, /activePrecache && activePackageId/);
 assert.match(recoveryEngine, /controllers\.forEach\(metadata => \{/);
 assert.match(recoveryEngine, /metadata\.controller\.abort\(\)/);
-assert.match(app, /setTimeout\(\(\) => \{[\s\S]*?Aguardando a rede[\s\S]*?8000\);/);
-assert.doesNotMatch(
+assert.match(
   app,
-  /setTimeout\(\(\) => \{[\s\S]*?resume-btn[\s\S]*?8000\);/,
-  'an eight-second gap must show a non-actionable waiting state, not manual retry'
+  /stallRecoveryAttempts < 2[\s\S]*?startTilePreCache\(\{ forceRetry: true \}\)[\s\S]*?Continuar download/,
+  'a silent worker must get bounded automatic retries followed by a usable fallback'
 );
 assert.match(app, /Math\.max\(previousStored, Math\.min\(stored, total\)\)/);
 assert.match(
@@ -85,6 +84,7 @@ assert.match(app, /function scheduleRecovery\(nextRetryAt\)/);
   const harnessSource = [
     app.match(/let lastProgress = \{ stored: 0, total: 0 \};/)[0],
     app.match(/let stallTimer = null;/)[0],
+    app.match(/let stallRecoveryAttempts = 0;/)[0],
     app.match(/let recoveryTimer = null;/)[0],
     app.match(/let storagePrepared = false;/)[0],
     app.match(/let offlineDownloadActive = false;/)[0],
@@ -149,6 +149,25 @@ assert.match(app, /function scheduleRecovery\(nextRetryAt\)/);
     forceRetry: false, onlineTransition: false, foregroundTransition: false
   }), 'initial download posts all recovery options explicitly');
 
+  dispatch({ type: 'cache-progress', total: 10, stored: 3, failed: 0 });
+  runTimer(8_000);
+  await flush();
+  assert.equal(posted.at(-1).forceRetry, true,
+    'a silent worker triggers an automatic forced continuation');
+  assert.match(element('progress-text').textContent, /Retomando automaticamente/);
+  runTimer(8_000);
+  await flush();
+  assert.equal(posted.filter(message => message.forceRetry).length, 2,
+    'the watchdog makes a second bounded automatic recovery attempt');
+  runTimer(8_000);
+  assert.equal(element('resume-btn').style.display, 'inline-block',
+    'a persistently silent worker restores a usable manual continuation');
+  assert.equal(element('resume-btn').textContent, 'Continuar download');
+  element('resume-btn').onclick();
+  await flush();
+  assert.equal(posted.at(-1).forceRetry, true,
+    'the watchdog fallback sends a real forced continuation');
+
   handlers.online();
   await flush();
   handlers.online();
@@ -199,9 +218,12 @@ assert.match(app, /function scheduleRecovery\(nextRetryAt\)/);
 
   dispatch({ type: 'cache-runtime-blocked', total: 10, stored: 0, failed: 0 });
   assert.equal(element('resume-btn').style.display, 'inline-block');
-  assert.equal(element('resume-btn').textContent, 'Reiniciar e tentar novamente');
+  assert.equal(element('resume-btn').textContent, 'Continuar download');
   element('resume-btn').onclick();
-  assert.equal(reloads, 1, 'Cache API failures offer a working reload action');
+  await flush();
+  assert.equal(posted.at(-1).forceRetry, true,
+    'Cache API failures retry through the worker instead of only reloading the page');
+  assert.equal(reloads, 0, 'Cache API recovery preserves the current page and its cached progress');
   assert.equal(element('loading-overlay').style.display, 'block', 'Cache API failure cannot reveal the map');
 
   dispatch({
@@ -209,7 +231,7 @@ assert.match(app, /function scheduleRecovery\(nextRetryAt\)/);
     total: 10, stored: 0, failed: 0
   });
   element('resume-btn').onclick();
-  assert.equal(reloads, 2, 'package mismatch offers a safe app restart');
+  assert.equal(reloads, 1, 'package mismatch still offers a safe app restart');
 
   dispatch({ type: 'cache-complete', total: 10, stored: 10, failed: 0 });
   assert.equal(element('progress-text').textContent, 'Mapa offline pronto ✓');
@@ -222,8 +244,8 @@ assert.match(app, /function scheduleRecovery\(nextRetryAt\)/);
 assert.match(app, /if \(\(terminalPackageBlocked \|\| offlinePackageReady\) && !forceRetry\) return;/);
 assert.match(
   app,
-  /function showDownloadBlocked\(message\) \{[\s\S]*?button\.textContent = 'Reiniciar e tentar novamente';[\s\S]*?window\.location\.reload\(\)/,
-  'generic worker failures need a reload action distinct from package force-retry'
+  /cache-runtime-blocked[\s\S]*?showManualRetry\([\s\S]*?'Continuar download'/,
+  'Cache API failures need a real worker continuation rather than a page reload'
 );
 assert.match(app, /let offlinePackageReady = false;/);
 assert.match(
