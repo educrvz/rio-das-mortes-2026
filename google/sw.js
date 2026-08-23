@@ -1,6 +1,6 @@
 importScripts('./tile-manifest.js');
 
-const CACHE_NAME = 'rio-das-mortes-google-v2';
+const CACHE_NAME = 'rio-das-mortes-google-v3';
 const CACHE_PREFIX = 'rio-das-mortes-google-';
 
 const APP_SHELL = [
@@ -9,7 +9,7 @@ const APP_SHELL = [
   './instrucoes.html',
   './google-config.js',
   '../app.js',
-  '../style.css?v=12',
+  '../style.css?v=13',
   '../route-data.js',
   './tile-manifest.js',
   './manifest.json',
@@ -60,7 +60,7 @@ self.addEventListener('fetch', event => {
 });
 
 let activePrecache = null;
-let activePackageId = null;
+const activeFetchControllers = new Set();
 
 async function broadcast(message) {
   const currentClients = await self.clients.matchAll();
@@ -69,30 +69,27 @@ async function broadcast(message) {
 
 self.addEventListener('message', event => {
   if (event.data.type !== 'precache-tiles') return;
-  if (activePrecache && activePackageId === event.data.packageId) {
-    event.waitUntil(activePrecache);
-    return;
-  }
+  activeFetchControllers.forEach(controller => controller.abort());
   const run = () => precacheTiles(event.data.packageId, event.data.expectedCount);
   const queued = (activePrecache || Promise.resolve()).then(run, run);
   const tracked = queued.finally(() => {
     if (activePrecache === tracked) {
       activePrecache = null;
-      activePackageId = null;
     }
   });
   activePrecache = tracked;
-  activePackageId = event.data.packageId;
   event.waitUntil(tracked);
 });
 
 async function fetchWithTimeout(url, timeoutMs = 15000) {
   const controller = new AbortController();
+  activeFetchControllers.add(controller);
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(url, { signal: controller.signal });
   } finally {
     clearTimeout(timeout);
+    activeFetchControllers.delete(controller);
   }
 }
 
@@ -173,6 +170,9 @@ async function precacheTiles(packageId, expectedCount) {
   }
   loaded = cursor;
   stored = cursor;
+  if (cursor > 0) {
+    await broadcast({ type: 'cache-progress', loaded, stored, reused: cursor, failed, total });
+  }
   const chunkEnd = Math.min(cursor + CHUNK_SIZE, total);
   for (let i = cursor; i < chunkEnd; i += BATCH) {
     const batch = tileUrls.slice(i, Math.min(i + BATCH, chunkEnd));

@@ -9,10 +9,10 @@
 <meta name="theme-color" content="#171916">
 <title>Rio das Mortes 2026 · Google</title>
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="../rio-mortes-icon-192.png" type="image/png">
-<link rel="apple-touch-icon" href="../rio-mortes-icon-192.png">
+<link rel="icon" href="rio-mortes-google-icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="rio-mortes-google-icon-192.png">
 <link rel="stylesheet" href="../vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="../style.css?v=12">
+<link rel="stylesheet" href="../style.css?v=13">
 </head>
 <body>
 <main id="app-shell" aria-label="Guia de campo do Rio das Mortes">
@@ -20,15 +20,15 @@
 
 <div id="loading-overlay" role="status" aria-live="polite" aria-label="Preparação do mapa offline">
   <div class="loading-content">
-    <img class="loading-logo" src="../rio-mortes-icon-192.png" alt="">
-    <p class="loading-kicker">EXPEDIÇÃO · 2026</p>
+    <img class="loading-logo" src="rio-mortes-google-icon-192.png" alt="">
+    <p class="loading-kicker">GOOGLE · PESQUISA</p>
     <h1>Rio das Mortes</h1>
-    <p id="download-size">O pacote offline ainda está sendo preparado.</p>
-    <p class="download-hint">Você já pode usar o mapa; mantenha a tela aberta até completar.</p>
+    <p id="download-size">Preparando o pacote de imagens offline.</p>
+    <p class="download-hint">Mantenha esta tela aberta. O mapa aparecerá somente quando o download terminar.</p>
     <div class="progress-bar" id="progress-bar" role="progressbar" aria-label="Download das imagens offline" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="progress-fill" id="progress-fill"></div></div>
     <p id="progress-text">Conectando...</p>
     <button id="resume-btn" class="resume-btn" onclick="resumeDownload()" style="display:none">
-      Tentar novamente
+      Parou? Continuar download
     </button>
   </div>
 </div>

@@ -56,6 +56,8 @@ Fonte: relação de Mato Grosso do Ministério da Saúde, publicada em 03/07/202
 - Notas locais com criação explícita, edição, remoção e exportação.
 - PWA instalável em Android e iPhone.
 - Leaflet empacotado localmente, sem dependência da CDN para abrir o app-base offline.
+- Fluxo de instalação em duas etapas: primeiro uma página sem mapa com instruções para Android e iPhone; depois uma tela exclusiva de download.
+- A tela de download mantém um contador contínuo até 34.994 imagens, não revela o mapa antes de 100% e oferece continuação após 8 segundos sem progresso.
 
 ## Cobertura offline
 
@@ -76,3 +78,4 @@ Fonte: relação de Mato Grosso do Ministério da Saúde, publicada em 03/07/202
 5. Notas persistem localmente e podem ser exportadas.
 6. Cada pacote contém exatamente os 34.994 tiles previstos e exibe a atribuição correspondente.
 7. O app passa em teste de modo avião no navegador e no aparelho real.
+8. As duas edições preservam o fluxo de instalação sem mapa, download em tela cheia, contador monotônico e retomada após interrupção.
