@@ -10,6 +10,10 @@
 
 The offline JPEG tiles in `tiles/` are derived from the pinned INPE scenes. The app displays the attribution “Imagens © INPE/CBERS-4A · CC BY 4.0” on both the map and installation page.
 
+## Google Satellite research comparison
+
+The separate package under `google/` reproduces the satellite-tile method used by the earlier Pindaíba and Carinhanha research apps. It is identified in the interface as “Imagens © Google · uso em pesquisa” and has its own install identity and offline cache.
+
 ## Map library
 
 Leaflet is distributed under the BSD 2-Clause License. Its local distribution and license are stored under `vendor/leaflet/`.

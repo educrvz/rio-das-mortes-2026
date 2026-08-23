@@ -60,8 +60,9 @@ Fonte: relação de Mato Grosso do Ministério da Saúde, publicada em 03/07/202
 ## Cobertura offline
 
 - Corredor do rio até zoom 17.
-- Todas as cinco estradas até zoom 16.
-- Pacote validado: 16.685 tiles, 101,9 MB.
+- Todas as cinco estradas até zoom 17.
+- Pacote INPE validado: 34.994 tiles, 199,9 MB.
+- Pacote Google de pesquisa: 34.994 tiles, 547,3 MB, com PWA e cache independentes.
 - A geometria das estradas acrescenta cerca de 125 KB ao app; o peso relevante vem das imagens.
 - Fonte adotada: coleção colorida CBERS-4A/WPM PCA Fused do INPE, 2 m, CC BY 4.0.
 - Dezesseis cenas fixadas cobrem o rio e as cinco estradas; o pipeline combina pixels válidos das cenas sobrepostas para eliminar lacunas nas bordas.
@@ -73,5 +74,5 @@ Fonte: relação de Mato Grosso do Ministério da Saúde, publicada em 03/07/202
 3. Filtros escondem e restauram cada categoria.
 4. GPS e progresso funcionam em viewport móvel.
 5. Notas persistem localmente e podem ser exportadas.
-6. O pacote contém exatamente os 16.685 tiles previstos e usa fonte autorizada com atribuição visível.
+6. Cada pacote contém exatamente os 34.994 tiles previstos e exibe a atribuição correspondente.
 7. O app passa em teste de modo avião no navegador e no aparelho real.
