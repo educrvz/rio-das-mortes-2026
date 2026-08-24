@@ -843,10 +843,9 @@ if ('serviceWorker' in navigator) {
     }
     if (event.data.type === 'cache-recovery-exhausted') {
       updateProgress(event.data.total, event.data.stored, event.data.failed);
-      const diagnostic = Array.isArray(event.data.reasons) && event.data.reasons.length
-        ? ` Código: ${event.data.reasons.join(', ')}.` : '';
       showManualRetry(
-        `${(event.data.failed || 0).toLocaleString('pt-BR')} imagens ainda precisam de recuperação.${diagnostic}`
+        `${(event.data.failed || 0).toLocaleString('pt-BR')} imagens ainda precisam ser baixadas.`,
+        'Continuar download'
       );
     }
     if (event.data.type === 'storage-blocked') {

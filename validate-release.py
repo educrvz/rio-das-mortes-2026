@@ -288,21 +288,19 @@ def validate_offline_recovery_contract():
     engine = engine_path.read_text()
     required_engine_tokens = [
         "self.installOfflineRecovery",
-        "STATE_VERSION",
-        "MAX_ATTEMPTS = 4",
-        "INITIAL_CONCURRENCY = 6",
-        "MIN_CONCURRENCY = 1",
-        "MAX_CONCURRENCY = 12",
-        "PROBE_DELAYS = [5_000, 15_000, 45_000]",
-        "cache-recovery-wait",
+        "BATCH_SIZE = 30",
+        "Promise.allSettled",
+        "cache-progress",
         "cache-recovery-exhausted",
         "storage-blocked",
-        "cache-runtime-blocked",
         "package-mismatch",
-        "package-integrity-blocked",
     ]
     if any(token not in engine for token in required_engine_tokens):
         fail("shared offline recovery engine is missing a required runtime contract")
+    if "AbortController" in engine or ".abort(" in engine:
+        fail("Pindaiba-style offline recovery must not cancel image requests")
+    if "writeState" in engine or "STATE_VERSION" in engine:
+        fail("offline progress must come from tile cache membership, not a second mutable checkpoint")
 
     for edition, (relative_path, cache_name, cache_prefix) in EXPECTED_CACHE_IDENTITIES.items():
         worker = (ROOT / relative_path).read_text()
@@ -329,7 +327,7 @@ def validate_offline_recovery_contract():
     policy_source = policy_test.read_text()
     if "{ name: 'INPE'" not in policy_source or "{ name: 'Google'" not in policy_source:
         fail("offline recovery policy test must cover both editions")
-    print("Offline recovery: shared engine · root/Google contract parity · unchanged cache identities")
+    print("Offline recovery: Pindaiba-style cache scan · root/Google parity · unchanged cache identities")
 
 
 def validate_imagery_provenance():

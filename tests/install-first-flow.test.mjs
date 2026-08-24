@@ -24,8 +24,10 @@ assert.doesNotMatch(rootWorker, /activePrecache && activePackageId/);
 assert.doesNotMatch(googleWorker, /activePrecache && activePackageId/);
 assert.doesNotMatch(recoveryEngine, /function abortActive\(/,
   'manual continuation must not cancel an in-flight download');
-assert.doesNotMatch(recoveryEngine, /metadata\.forced/,
-  'the only allowed AbortController cancellation is the per-request timeout');
+assert.doesNotMatch(recoveryEngine, /AbortController|\.abort\(/,
+  'the field-proven downloader must not cancel requests at all');
+assert.doesNotMatch(recoveryEngine, /writeState|STATE_VERSION/,
+  'the image cache itself must be the only persistent download checkpoint');
 assert.match(
   app,
   /setTimeout\(\(\) => \{[\s\S]*?showManualRetry\('O download pausou\.', 'Continuar download'\)/,
