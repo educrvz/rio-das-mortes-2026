@@ -220,14 +220,17 @@ async function activate(harness) {
 {
   let fetches = 0;
   let markStarted;
+  let resolveFirst;
+  let aborts = 0;
   const firstFetchStarted = new Promise(resolve => { markStarted = resolve; });
   const harness = createHarness({
     fetchImpl: async (_url, options = {}) => {
       fetches++;
       if (fetches > 1) return new Response('jpeg', { status: 200 });
       markStarted();
-      return new Promise((resolve, reject) => {
-        options.signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
+      return new Promise(resolve => {
+        resolveFirst = resolve;
+        options.signal.addEventListener('abort', () => { aborts++; }, { once: true });
       });
     }
   });
@@ -248,8 +251,11 @@ async function activate(harness) {
     data: { type: 'precache-tiles', packageId: 'retry-package', expectedCount: 1, forceRetry: true },
     waitUntil(promise) { forcedCompletion = promise; }
   });
+  assert.equal(aborts, 0, 'forceRetry must not abort an active response body');
+  resolveFirst(new Response('busy', { status: 503 }));
   await Promise.all([firstCompletion, retryCompletion, forcedCompletion]);
-  assert.equal(fetches, 2, 'explicit forceRetry must abort stalled work and start a fresh cycle');
+  assert.equal(aborts, 0);
+  assert.equal(fetches, 2, 'explicit forceRetry waits, then starts one clean recovery cycle');
   assert.equal(harness.messages.at(-1).type, 'cache-complete');
 }
 

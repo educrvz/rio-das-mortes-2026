@@ -217,7 +217,6 @@
   self.installOfflineRecovery = function installOfflineRecovery(config) {
     const { cacheName, cachePrefix, tilePathFragment, getTileList, expectedPackageId } = config;
     let active = null;
-    const controllers = new Set();
     const runtimeByPackage = new Map();
     const reconciledPackages = new Set();
     let manifestSnapshot = null;
@@ -242,29 +241,19 @@
 
     async function fetchWithTimeout(url, timeoutMs = 15_000) {
       const controller = new AbortController();
-      const metadata = { controller, forced: false, timedOut: false };
-      controllers.add(metadata);
+      let timedOut = false;
       const timeout = setTimeout(() => {
-        metadata.timedOut = true;
+        timedOut = true;
         controller.abort();
       }, timeoutMs);
       try {
         return await fetch(url, { signal: controller.signal });
       } catch (error) {
-        if (metadata.forced) throw { recoveryKind: 'aborted', cause: error };
-        if (metadata.timedOut) throw { recoveryKind: 'timeout', cause: error };
+        if (timedOut) throw { recoveryKind: 'timeout', cause: error };
         throw { recoveryKind: 'network', cause: error };
       } finally {
         clearTimeout(timeout);
-        controllers.delete(metadata);
       }
-    }
-
-    function abortActive() {
-      controllers.forEach(metadata => {
-        metadata.forced = true;
-        metadata.controller.abort();
-      });
     }
 
     async function removeSupersededCaches() {
@@ -736,8 +725,16 @@
             event.waitUntil(active.promise);
             return;
           }
-          active.cancelled = true;
-          abortActive();
+          // Match the field-proven Pindaíba behavior: never abort a response
+          // already being written to Cache Storage. Queue one recovery pass
+          // behind it and let cache membership skip completed tiles.
+          if (active.onlineTransition || active.foregroundTransition) {
+            active.cancelled = true;
+          }
+          event.waitUntil(queuePrecache(packageId, event.data.expectedCount, {
+            forceRetry: true, onlineTransition: false, foregroundTransition: false
+          }, active.promise));
+          return;
         } else if (onlineTransition && !active.onlineTransition) {
           event.waitUntil(queuePrecache(packageId, event.data.expectedCount, {
             forceRetry: false, onlineTransition: true, foregroundTransition: false
@@ -753,8 +750,10 @@
           return;
         }
       } else if (forceRetry && active) {
-        active.cancelled = true;
-        abortActive();
+        event.waitUntil(queuePrecache(packageId, event.data.expectedCount, {
+          forceRetry: true, onlineTransition: false, foregroundTransition: false
+        }, active.promise));
+        return;
       }
       event.waitUntil(queuePrecache(packageId, event.data.expectedCount, {
         forceRetry, onlineTransition, foregroundTransition

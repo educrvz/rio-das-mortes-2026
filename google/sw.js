@@ -1,6 +1,6 @@
 importScripts('./tile-manifest.js', '../offline-recovery-engine.js');
 
-// Refresh structural Cache API recovery without changing the imagery cache identity.
+// Resume like Pindaíba without aborting active cache writes; keep imagery identity.
 
 const CACHE_NAME = 'rio-das-mortes-google-v3';
 const CACHE_PREFIX = 'rio-das-mortes-google-';

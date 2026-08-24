@@ -515,32 +515,41 @@ for (const variant of variants) {
   }
 
   {
+    let resolveFirst;
     let fetches = 0;
+    let aborts = 0;
     const h = harnessFor(variant, {
       fetchImpl: async (_url, options) => {
         fetches++;
         if (fetches > 1) return new Response('jpeg', { status: 200 });
-        return new Promise((_resolve, reject) => {
-          options.signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
+        return new Promise(resolve => {
+          resolveFirst = resolve;
+          options.signal.addEventListener('abort', () => { aborts++; }, { once: true });
         });
       }
     });
     const first = h.start('forced');
     await new Promise(resolve => setTimeout(resolve, 0));
     const forced = h.start('forced', { forceRetry: true });
+    assert.equal(aborts, 0, `${variant.name}: manual continuation never aborts active work`);
+    resolveFirst(new Response('busy', { status: 503 }));
     await Promise.all([first, forced]);
-    assert.equal(fetches, 2, `${variant.name}: only forceRetry replaces active work`);
+    assert.equal(aborts, 0);
+    assert.equal(fetches, 2, `${variant.name}: forceRetry queues one recovery after active work`);
     assert.equal(h.messages.at(-1).type, 'cache-complete');
   }
 
   {
+    let resolveFirst;
     let fetches = 0;
+    let aborts = 0;
     const h = harnessFor(variant, {
       fetchImpl: async (_url, options) => {
         fetches++;
         if (fetches === 1) {
-          return new Promise((_resolve, reject) => {
-            options.signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
+          return new Promise(resolve => {
+            resolveFirst = resolve;
+            options.signal.addEventListener('abort', () => { aborts++; }, { once: true });
           });
         }
         return new Response('busy', { status: 503 });
@@ -550,20 +559,25 @@ for (const variant of variants) {
     await new Promise(resolve => setTimeout(resolve, 0));
     const firstForce = h.start('duplicate-force', { forceRetry: true });
     const secondForce = h.start('duplicate-force', { forceRetry: true });
+    resolveFirst(new Response('busy', { status: 503 }));
     await Promise.all([initial, firstForce, secondForce]);
     const state = await h.state('duplicate-force');
     assert.equal(fetches, 2, `${variant.name}: concurrent force requests share the first forced generation`);
+    assert.equal(aborts, 0);
     assert.equal(state.failed[0].attempts, 1);
   }
 
   {
+    let resolveFirst;
     let fetches = 0;
+    let aborts = 0;
     const h = harnessFor(variant, {
       fetchImpl: async (_url, options) => {
         fetches++;
         if (fetches === 1) {
-          return new Promise((_resolve, reject) => {
-            options.signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
+          return new Promise(resolve => {
+            resolveFirst = resolve;
+            options.signal.addEventListener('abort', () => { aborts++; }, { once: true });
           });
         }
         return new Response('busy', { status: 503 });
@@ -573,10 +587,12 @@ for (const variant of variants) {
     await new Promise(resolve => setTimeout(resolve, 0));
     const online = h.start('force-supersedes-transition', { onlineTransition: true });
     const forced = h.start('force-supersedes-transition', { forceRetry: true });
+    resolveFirst(new Response('busy', { status: 503 }));
     await Promise.all([initial, online, forced]);
     const state = await h.state('force-supersedes-transition');
     assert.equal(fetches, 2,
       `${variant.name}: force retry cancels a queued transition instead of running both generations`);
+    assert.equal(aborts, 0, `${variant.name}: superseding queued work must not abort active fetches`);
     assert.equal(state.onlineRecoveryUsed, false);
     assert.equal(state.failed[0].attempts, 1);
   }
