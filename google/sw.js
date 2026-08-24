@@ -9,6 +9,8 @@ const APP_SHELL = [
   './',
   './index.html',
   './instrucoes.html',
+  './reiniciar.html',
+  './reset-download.js',
   './google-config.js',
   '../app.js',
   '../style.css?v=13',
