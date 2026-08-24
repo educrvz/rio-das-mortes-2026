@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#171916">
+<title>Rio das Mortes · Reiniciar download Google</title>
+<link rel="icon" href="rio-mortes-google-icon-192.png" type="image/png">
+<style>
+:root { --ink:#171916; --paper:#f3e8ce; --muted:#b8b49f; --route:#f04a28; --ochre:#d89524; --warning:#ffd36a; }
+* { box-sizing:border-box; }
+body { min-height:100vh; margin:0; display:grid; place-items:center; padding:24px 18px; font-family:"Avenir Next",Avenir,"Trebuchet MS",sans-serif; background:repeating-radial-gradient(ellipse at 85% 10%,transparent 0 34px,rgba(243,232,206,.035) 35px 36px),var(--ink); color:var(--paper); text-align:center; }
+main { width:min(100%,520px); }
+img { width:128px; height:128px; border-radius:28px; box-shadow:0 18px 42px rgba(0,0,0,.42); }
+.kicker { margin:25px 0 7px; color:var(--ochre); font-size:11px; font-weight:900; letter-spacing:.2em; }
+h1 { margin:0; font:700 clamp(36px,10vw,54px)/.95 Georgia,"Times New Roman",serif; letter-spacing:-.04em; }
+.explanation { margin:24px auto; max-width:440px; color:var(--muted); font-size:17px; line-height:1.5; }
+.preserved { margin:18px 0 26px; padding:14px; border:1px solid rgba(216,149,36,.5); color:var(--warning); }
+button { width:100%; min-height:58px; padding:16px; border:0; border-radius:5px; background:var(--route); color:var(--ink); font:900 16px/1.2 "Avenir Next",Avenir,sans-serif; letter-spacing:.035em; cursor:pointer; }
+button:disabled { opacity:.6; cursor:wait; }
+button:focus-visible { outline:3px solid var(--warning); outline-offset:4px; }
+#reset-status { min-height:48px; margin-top:18px; color:var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <img src="rio-mortes-google-icon-192.png" alt="Ícone do Rio das Mortes Google">
+  <p class="kicker">GOOGLE · PESQUISA</p>
+  <h1>Começar do zero</h1>
+  <p class="explanation">Esta ação apaga somente as imagens incompletas e o progresso do download Google do Rio das Mortes. Depois, o app iniciará novamente com 0 de 34.994 imagens.</p>
+  <p class="preserved">Outros apps, a versão INPE e suas anotações serão preservados.</p>
+  <button id="reset-button" type="button">APAGAR DOWNLOAD E COMEÇAR DO ZERO</button>
+  <p id="reset-status" role="status" aria-live="polite"></p>
+</main>
+<script src="reset-download.js"></script>
+</body>
+</html>
