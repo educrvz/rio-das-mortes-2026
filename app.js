@@ -15,7 +15,6 @@ let speedSamples = [];
 let lastNoteEditorOpenedAt = 0;
 let lastProgress = { stored: 0, total: 0 };
 let stallTimer = null;
-let stallRecoveryAttempts = 0;
 let recoveryTimer = null;
 let storagePrepared = false;
 let offlineDownloadActive = false;
@@ -678,27 +677,18 @@ function showManualRetry(message, label = 'Tentar novamente') {
   button.onclick = resumeDownload;
 }
 
-function resetStallDetection(progressObserved = false) {
+function resetStallDetection() {
   if (stallTimer) clearTimeout(stallTimer);
-  if (progressObserved) stallRecoveryAttempts = 0;
   hideManualRetry();
 
   stallTimer = setTimeout(() => {
     if (offlineDownloadActive && lastProgress.total > 0) {
-      if (stallRecoveryAttempts < 2) {
-        stallRecoveryAttempts += 1;
-        document.getElementById('progress-text').textContent =
-          'O download pausou. Retomando automaticamente…';
-        startTilePreCache({ forceRetry: true });
-      } else {
-        showManualRetry('O download continua pausado.', 'Continuar download');
-      }
+      showManualRetry('O download pausou.', 'Continuar download');
     }
   }, 8000);
 }
 
 function resumeDownload() {
-  stallRecoveryAttempts = 0;
   hideManualRetry();
   document.getElementById('progress-text').textContent = 'Retomando download...';
   startTilePreCache({ forceRetry: true });

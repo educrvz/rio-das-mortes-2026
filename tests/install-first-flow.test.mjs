@@ -22,13 +22,16 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(rootWorker, /activePrecache && activePackageId/);
 assert.doesNotMatch(googleWorker, /activePrecache && activePackageId/);
-assert.match(recoveryEngine, /controllers\.forEach\(metadata => \{/);
-assert.match(recoveryEngine, /metadata\.controller\.abort\(\)/);
+assert.doesNotMatch(recoveryEngine, /function abortActive\(/,
+  'manual continuation must not cancel an in-flight download');
+assert.doesNotMatch(recoveryEngine, /metadata\.forced/,
+  'the only allowed AbortController cancellation is the per-request timeout');
 assert.match(
   app,
-  /stallRecoveryAttempts < 2[\s\S]*?startTilePreCache\(\{ forceRetry: true \}\)[\s\S]*?Continuar download/,
-  'a silent worker must get bounded automatic retries followed by a usable fallback'
+  /setTimeout\(\(\) => \{[\s\S]*?showManualRetry\('O download pausou\.', 'Continuar download'\)/,
+  'a silent worker must offer continuation without aborting it automatically'
 );
+assert.doesNotMatch(app, /Retomando automaticamente/);
 assert.match(app, /Math\.max\(previousStored, Math\.min\(stored, total\)\)/);
 assert.match(
   app,
@@ -84,7 +87,6 @@ assert.match(app, /function scheduleRecovery\(nextRetryAt\)/);
   const harnessSource = [
     app.match(/let lastProgress = \{ stored: 0, total: 0 \};/)[0],
     app.match(/let stallTimer = null;/)[0],
-    app.match(/let stallRecoveryAttempts = 0;/)[0],
     app.match(/let recoveryTimer = null;/)[0],
     app.match(/let storagePrepared = false;/)[0],
     app.match(/let offlineDownloadActive = false;/)[0],
@@ -150,23 +152,17 @@ assert.match(app, /function scheduleRecovery\(nextRetryAt\)/);
   }), 'initial download posts all recovery options explicitly');
 
   dispatch({ type: 'cache-progress', total: 10, stored: 3, failed: 0 });
+  const postsBeforeStall = posted.length;
   runTimer(8_000);
-  await flush();
-  assert.equal(posted.at(-1).forceRetry, true,
-    'a silent worker triggers an automatic forced continuation');
-  assert.match(element('progress-text').textContent, /Retomando automaticamente/);
-  runTimer(8_000);
-  await flush();
-  assert.equal(posted.filter(message => message.forceRetry).length, 2,
-    'the watchdog makes a second bounded automatic recovery attempt');
-  runTimer(8_000);
+  assert.equal(posted.length, postsBeforeStall,
+    'the watchdog must never abort or restart an in-flight worker');
   assert.equal(element('resume-btn').style.display, 'inline-block',
-    'a persistently silent worker restores a usable manual continuation');
+    'a silent worker offers a manual continuation');
   assert.equal(element('resume-btn').textContent, 'Continuar download');
   element('resume-btn').onclick();
   await flush();
   assert.equal(posted.at(-1).forceRetry, true,
-    'the watchdog fallback sends a real forced continuation');
+    'manual continuation asks the worker for a queued recovery pass');
 
   handlers.online();
   await flush();
