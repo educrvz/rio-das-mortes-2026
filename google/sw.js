@@ -1,6 +1,6 @@
 importScripts('./tile-manifest.js', '../offline-recovery-engine.js');
 
-// Resume like Pindaíba without aborting active cache writes; keep imagery identity.
+// Field-proven Pindaiba downloader: the tile cache itself is the checkpoint.
 
 const CACHE_NAME = 'rio-das-mortes-google-v3';
 const CACHE_PREFIX = 'rio-das-mortes-google-';
